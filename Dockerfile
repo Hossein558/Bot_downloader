@@ -19,13 +19,18 @@ RUN dotnet publish src/YTDLHub.Bot/YTDLHub.Bot.csproj -c Release -o out
 FROM mcr.microsoft.com/dotnet/runtime:9.0 AS runtime
 WORKDIR /app
 
-# Install dependencies: python3, pip, nodejs (JS runtime for yt-dlp signature challenges), ffmpeg
+# Install dependencies: python3, pip, ffmpeg, curl, unzip, Deno (default JS runtime for yt-dlp)
 RUN apt-get update && apt-get install -y \
     python3 \
     python3-pip \
-    nodejs \
     ffmpeg \
+    curl \
+    unzip \
+    && curl -fsSL https://deno.land/install.sh | sh \
+    && mv /root/.deno/bin/deno /usr/local/bin/deno \
     && pip3 install --break-system-packages --no-cache-dir "yt-dlp[default]" \
+    && apt-get remove -y curl unzip \
+    && apt-get autoremove -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy built application
