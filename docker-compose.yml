@@ -31,8 +31,8 @@ services:
     container_name: telegram-bot-api
     restart: always
     environment:
-      - TELEGRAM_API_ID=27230495
-      - TELEGRAM_API_HASH=ebca492ffbb4e01ea34cf6d782cf210b
+      - TELEGRAM_API_ID=6
+      - TELEGRAM_API_HASH=eb062f7f7077bcc3b25e37262d6e59a6
       - TELEGRAM_LOCAL=1
     volumes:
       - telegram-bot-api-data:/var/lib/telegram-bot-api
