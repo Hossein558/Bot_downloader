@@ -10,5 +10,7 @@ services:
       - YtDlp__ExecutablePath=yt-dlp
       - YtDlp__DownloadDirectory=/app/downloads
       - YtDlp__FileRetentionMinutes=60
+      - YtDlp__CookiesFilePath=/app/cookies.txt
     volumes:
       - ./downloads:/app/downloads
+      - ./cookies.txt:/app/cookies.txt
