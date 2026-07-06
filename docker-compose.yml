@@ -1,0 +1,14 @@
+services:
+  ytdlhub-bot:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ytdlhub-bot
+    restart: always
+    environment:
+      - Telegram__BotToken=8993945202:AAHkdr64Aqp551g-SNLPNwHuAgDK5SEaiKI
+      - YtDlp__ExecutablePath=yt-dlp
+      - YtDlp__DownloadDirectory=/app/downloads
+      - YtDlp__FileRetentionMinutes=60
+    volumes:
+      - ./downloads:/app/downloads
