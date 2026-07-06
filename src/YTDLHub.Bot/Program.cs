@@ -14,7 +14,16 @@ var host = Host.CreateDefaultBuilder(args)
             ?? throw new InvalidOperationException(
                 "کلید 'Telegram:BotToken' در appsettings.json یا environment variables تنظیم نشده.");
 
-        services.AddSingleton<ITelegramBotClient>(new TelegramBotClient(token));
+        var baseUrl = config["Telegram:BaseUrl"];
+
+        if (!string.IsNullOrWhiteSpace(baseUrl))
+        {
+            services.AddSingleton<ITelegramBotClient>(new TelegramBotClient(new TelegramBotClientOptions(token, baseUrl)));
+        }
+        else
+        {
+            services.AddSingleton<ITelegramBotClient>(new TelegramBotClient(token));
+        }
 
         // ── yt-dlp Infrastructure ─────────────────────────────────────────
         services.AddYtDlpInfrastructure();

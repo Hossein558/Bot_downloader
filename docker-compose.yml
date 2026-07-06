@@ -1,12 +1,43 @@
 services:
 
+  # ── Cloudflare WARP Proxy ───────────────────────────────────────────────────
+  # Exposes a SOCKS5 proxy on port 1080 to route traffic through the WARP network.
+  # This provides a clean IP to bypass YouTube bot detection and rate limits.
+  warp:
+    image: monius/docker-warp-socks:latest
+    container_name: warp
+    restart: always
+    cap_add:
+      - NET_ADMIN
+      - SYS_ADMIN
+    sysctls:
+      - net.ipv6.conf.all.disable_ipv6=0
+      - net.ipv4.conf.all.src_valid_mark=1
+    volumes:
+      - warp-data:/var/lib/cloudflare-warp
+
   # ── PO Token Sidecar ────────────────────────────────────────────────────────
-  # Generates YouTube Proof-of-Origin tokens automatically so yt-dlp can
-  # bypass bot-detection on datacenter IPs without any personal cookies.
+  # Generates YouTube Proof-of-Origin tokens automatically.
   bgutil-provider:
     image: brainicism/bgutil-ytdlp-pot-provider:latest
     container_name: bgutil-provider
     restart: always
+
+  # ── Local Telegram Bot API Server ───────────────────────────────────────────
+  # Bypasses the 50MB file size upload limit of the official Telegram servers,
+  # allowing sending files up to 2000MB (2GB) directly to chats.
+  telegram-bot-api:
+    image: aiogram/telegram-bot-api:latest
+    container_name: telegram-bot-api
+    restart: always
+    environment:
+      - TELEGRAM_API_ID=27230495
+      - TELEGRAM_API_HASH=ebca492ffbb4e01ea34cf6d782cf210b
+      - TELEGRAM_LOCAL=1
+    volumes:
+      - telegram-bot-api-data:/var/lib/telegram-bot-api
+    ports:
+      - "8081:8081"
 
   # ── Telegram Bot ────────────────────────────────────────────────────────────
   ytdlhub-bot:
@@ -16,14 +47,22 @@ services:
     container_name: ytdlhub-bot
     restart: always
     depends_on:
+      - warp
       - bgutil-provider
+      - telegram-bot-api
     environment:
       - Telegram__BotToken=8993945202:AAHkdr64Aqp551g-SNLPNwHuAgDK5SEaiKI
+      - Telegram__BaseUrl=http://telegram-bot-api:8081
       - YtDlp__ExecutablePath=yt-dlp
       - YtDlp__DownloadDirectory=/app/downloads
       - YtDlp__FileRetentionMinutes=60
       - YtDlp__CookiesFilePath=/app/cookies.txt
+      - YtDlp__ProxyUrl=socks5://warp:1080
       - YtDlp__PotProviderUrl=http://bgutil-provider:4416
     volumes:
       - ./downloads:/app/downloads
       - ./cookies.txt:/app/cookies.txt
+
+volumes:
+  warp-data:
+  telegram-bot-api-data:
