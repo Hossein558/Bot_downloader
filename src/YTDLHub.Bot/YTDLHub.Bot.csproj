@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk.Worker">
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UserSecretsId>dotnet-YTDLHub.Bot-13b39194-536f-4607-8276-271b34bb3cff</UserSecretsId>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="9.0.17" />
+    <PackageReference Include="Microsoft.Extensions.Http" Version="10.0.9" />
+    <PackageReference Include="Telegram.Bot" Version="22.10.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\YTDLHub.Core\YTDLHub.Core.csproj" />
+    <ProjectReference Include="..\YTDLHub.Infrastructure\YTDLHub.Infrastructure.csproj" />
+  </ItemGroup>
+</Project>
