@@ -327,6 +327,15 @@ public sealed class YtDlpService : IDownloadService
             args.Add(_opts.CookiesFilePath);
         }
 
+        // PO Token sidecar: passes the bgutil provider base URL as an extractor-arg.
+        // yt-dlp-get-pot plugin picks this up and requests a PO token before each extraction,
+        // which allows bypassing YouTube bot-detection on datacenter IP addresses.
+        if (!string.IsNullOrWhiteSpace(_opts.PotProviderUrl))
+        {
+            args.Add("--extractor-args");
+            args.Add($"youtube:getpot_bgutil_baseurl={_opts.PotProviderUrl}");
+        }
+
         return args;
     }
 

@@ -35,4 +35,12 @@ public sealed class YtDlpOptions
     /// Maximum concurrent downloads allowed system-wide.
     /// </summary>
     public int MaxConcurrentDownloads { get; set; } = 3;
+
+    /// <summary>
+    /// Base URL of the bgutil PO Token sidecar service (e.g. http://bgutil-provider:4416).
+    /// When set, yt-dlp will request Proof-of-Origin tokens from this service,
+    /// bypassing YouTube bot-detection on datacenter IPs without personal cookies.
+    /// Leave empty to disable.
+    /// </summary>
+    public string? PotProviderUrl { get; set; }
 }
