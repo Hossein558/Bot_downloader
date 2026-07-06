@@ -28,7 +28,6 @@ RUN apt-get update && apt-get install -y \
     && mv /root/.deno/bin/deno /usr/local/bin/deno \
     && pip3 install --break-system-packages --no-cache-dir \
         "yt-dlp[default]" \
-        "yt-dlp-get-pot" \
         "bgutil-ytdlp-pot-provider" \
     && apt-get remove -y curl unzip \
     && apt-get autoremove -y \
