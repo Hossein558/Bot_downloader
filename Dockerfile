@@ -19,13 +19,13 @@ RUN dotnet publish src/YTDLHub.Bot/YTDLHub.Bot.csproj -c Release -o out
 FROM mcr.microsoft.com/dotnet/runtime:9.0 AS runtime
 WORKDIR /app
 
-# Install dependencies: python3, ffmpeg, curl
+# Install dependencies: python3, pip, nodejs (JS runtime for yt-dlp signature challenges), ffmpeg
 RUN apt-get update && apt-get install -y \
     python3 \
+    python3-pip \
+    nodejs \
     ffmpeg \
-    curl \
-    && curl -L https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp -o /usr/local/bin/yt-dlp \
-    && chmod a+rx /usr/local/bin/yt-dlp \
+    && pip3 install --break-system-packages --no-cache-dir "yt-dlp[default]" \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy built application
