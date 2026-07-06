@@ -4,7 +4,7 @@ services:
   # Generates YouTube Proof-of-Origin tokens automatically so yt-dlp can
   # bypass bot-detection on datacenter IPs without any personal cookies.
   bgutil-provider:
-    image: ghcr.io/brainlid/bgutil-ytdlp-pot-provider:latest
+    image: brainicism/bgutil-ytdlp-pot-provider:latest
     container_name: bgutil-provider
     restart: always
 
