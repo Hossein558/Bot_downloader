@@ -321,7 +321,8 @@ public sealed class YtDlpService : IDownloadService
         }
 
         if (!string.IsNullOrWhiteSpace(_opts.CookiesFilePath) &&
-            File.Exists(_opts.CookiesFilePath))
+            File.Exists(_opts.CookiesFilePath) &&
+            new FileInfo(_opts.CookiesFilePath).Length > 0)
         {
             args.Add("--cookies");
             args.Add(_opts.CookiesFilePath);
