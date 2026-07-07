@@ -6,6 +6,8 @@ using Telegram.Bot.Types.ReplyMarkups;
 using YTDLHub.Bot.Services;
 using YTDLHub.Core.Enums;
 using YTDLHub.Core.Interfaces;
+using YTDLHub.Core.Models;
+using VideoQuality = YTDLHub.Core.Enums.VideoQuality;
 
 namespace YTDLHub.Bot.Handlers;
 
