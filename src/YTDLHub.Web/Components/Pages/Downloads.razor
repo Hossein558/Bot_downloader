@@ -13,86 +13,103 @@
 
 <PageTitle>دانلود جدید - YTDLHub</PageTitle>
 
-<div class="mb-4">
-    <h2 class="h4 mb-1">دانلود جدید</h2>
-    <p class="text-muted" style="font-size: 13px;">لینک ویدیو یا پست خود را وارد کنید.</p>
-</div>
+<div class="form-page">
+    <div class="form-header">
+        <div class="form-header-logo">
+            <div class="company-logo">YTDLHub</div>
+        </div>
+        <div class="form-header-title">
+            <h1>ثبت دانلود جدید</h1>
+        </div>
+        <div class="form-header-info text-center text-muted" style="font-size: 0.85rem; padding-left: 1rem;">
+            فایل ویدیویی یا صوتی
+        </div>
+    </div>
 
-<div class="row">
-    <div class="col-md-8 col-lg-6">
-        <div class="card shadow-lg" style="background-color: var(--surface); border: 1px solid var(--border); border-radius: 16px; overflow: hidden;">
-            <div class="card-body p-4">
-                <EditForm Model="@Model" OnValidSubmit="HandleSubmit">
-                    <DataAnnotationsValidator />
-                    
-                    <div class="form-group mb-4">
-                        <label class="form-label">لینک محتوا (یوتیوب یا اینستاگرام)</label>
-                        <div class="input-icon-wrapper">
-                            <i class="bi bi-link-45deg input-icon text-muted"></i>
-                            <InputText @bind-Value="Model.Url" @oninput="OnUrlInput" class="form-input" style="padding-right: 40px;" placeholder="https://..." dir="ltr" />
+    <div class="step-card">
+        <div class="step-title d-flex justify-content-between align-items-center">
+            <span>جزئیات دانلود</span>
+            <i class="bi bi-cloud-arrow-down fs-5 text-muted"></i>
+        </div>
+
+        <EditForm Model="@Model" OnValidSubmit="HandleSubmit">
+            <DataAnnotationsValidator />
+            
+            <div class="row mb-4">
+                <div class="col-md-12">
+                    <div class="input-group-rtl align-items-start">
+                        <label style="width: 150px; margin-top: 0.5rem;">لینک محتوا</label>
+                        <div class="flex-grow-1 position-relative">
+                            <i class="bi bi-link-45deg text-muted position-absolute" style="left: 12px; top: 10px; font-size: 1.2rem;"></i>
+                            <InputText @bind-Value="Model.Url" @oninput="OnUrlInput" class="form-control-rtl" placeholder="https://..." dir="ltr" />
+                            <ValidationMessage For="@(() => Model.Url)" class="text-danger mt-1" style="font-size: 12px;" />
                         </div>
-                        <ValidationMessage For="@(() => Model.Url)" class="text-danger mt-1" style="font-size: 12px;" />
                     </div>
+                </div>
+            </div>
 
-                    @if (IsYoutube)
-                    {
-                        <div class="form-group mb-4">
-                            <label class="form-label">کیفیت (فقط برای یوتیوب)</label>
-                            <InputSelect @bind-Value="Model.Quality" class="form-input" dir="ltr">
-                                @foreach (var q in Qualities)
+            @if (IsYoutube)
+            {
+                <div class="row mb-4">
+                    <div class="col-md-12">
+                        <div class="input-group-rtl">
+                            <label style="width: 150px;">کیفیت ویدیو</label>
+                            <div class="flex-grow-1">
+                                <InputSelect @bind-Value="Model.Quality" class="form-control-rtl" dir="ltr">
+                                    @foreach (var q in Qualities)
+                                    {
+                                        <option value="@q.Value">@q.Name</option>
+                                    }
+                                </InputSelect>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+
+            <div class="row mb-4">
+                <div class="col-md-12">
+                    <div class="input-group-rtl">
+                        <label style="width: 150px;">ذخیره در پوشه</label>
+                        <div class="flex-grow-1">
+                            <InputSelect @bind-Value="Model.FolderId" class="form-control-rtl">
+                                <option value="">-- پوشه اصلی --</option>
+                                @foreach (var f in UserFolders)
                                 {
-                                    <option value="@q.Value">@q.Name</option>
+                                    <option value="@f.Id">@f.Name</option>
                                 }
                             </InputSelect>
                         </div>
-                    }
-
-                    <div class="form-group mb-4">
-                        <label class="form-label">ذخیره در پوشه (اختیاری)</label>
-                        <InputSelect @bind-Value="Model.FolderId" class="form-input">
-                            <option value="">-- پوشه اصلی --</option>
-                            @foreach (var f in UserFolders)
-                            {
-                                <option value="@f.Id">@f.Name</option>
-                            }
-                        </InputSelect>
                     </div>
-
-                    <button type="submit" class="btn btn-primary w-100 justify-content-center" disabled="@IsSubmitting">
-                        @if (IsSubmitting)
-                        {
-                            <span class="spinner me-2"></span>
-                            <span>در حال پردازش...</span>
-                        }
-                        else
-                        {
-                            <i class="bi bi-cloud-arrow-down-fill me-2"></i>
-                            <span>شروع دانلود</span>
-                        }
-                    </button>
-                </EditForm>
-                
-                @if (!string.IsNullOrEmpty(Message))
-                {
-                    <div class="alert alert-@MessageType mt-4 mb-0">
-                        @Message
-                    </div>
-                }
+                </div>
             </div>
-        </div>
+
+            <hr style="border-color: var(--border); margin: 2rem 0 1.5rem;" />
+
+            <div class="d-flex justify-content-end">
+                <button type="submit" class="btn-primary-rtl btn-lg d-flex align-items-center gap-2" disabled="@IsSubmitting">
+                    @if (IsSubmitting)
+                    {
+                        <span class="spinner"></span>
+                        <span>در حال پردازش...</span>
+                    }
+                    else
+                    {
+                        <i class="bi bi-cloud-arrow-down-fill"></i>
+                        <span>شروع دانلود</span>
+                    }
+                </button>
+            </div>
+        </EditForm>
+        
+        @if (!string.IsNullOrEmpty(Message))
+        {
+            <div class="alert-@MessageType mt-4">
+                @Message
+            </div>
+        }
     </div>
 </div>
-
-<style>
-    .input-icon-wrapper { position: relative; }
-    .input-icon {
-        position: absolute;
-        right: 12px;
-        top: 50%;
-        transform: translateY(-50%);
-        font-size: 1.2rem;
-    }
-</style>
 
 @code {
     private DownloadFormModel Model = new();

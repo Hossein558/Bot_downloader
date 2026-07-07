@@ -11,64 +11,78 @@
 
 <PageTitle>پوشه‌های من - YTDLHub</PageTitle>
 
-<div class="mb-4 d-flex justify-content-between align-items-center">
-    <div>
-        <h2 class="h4 mb-1">پوشه‌های من</h2>
-        <p class="text-muted" style="font-size: 13px;">مدیریت پوشه‌های دانلود برای دسته‌بندی فایل‌ها</p>
+<div class="form-page">
+    <div class="form-header">
+        <div class="form-header-logo">
+            <div class="company-logo">YTDLHub</div>
+        </div>
+        <div class="form-header-title d-flex justify-content-between align-items-center w-100 pe-4">
+            <h1>پوشه‌های من</h1>
+            <button class="btn-primary-rtl btn-sm d-flex align-items-center gap-2" @onclick="ShowAddFolderModal">
+                <i class="bi bi-folder-plus"></i> پوشه جدید
+            </button>
+        </div>
+        <div class="form-header-info text-center text-muted" style="font-size: 0.85rem; padding-left: 1rem;">
+            مدیریت پوشه‌های دانلود برای دسته‌بندی فایل‌ها
+        </div>
     </div>
-    <button class="btn btn-primary" @onclick="ShowAddFolderModal">
-        <i class="bi bi-folder-plus me-2"></i> پوشه جدید
-    </button>
-</div>
 
-@if (IsLoading)
-{
-    <div class="text-center py-5 text-muted">
-        <span class="spinner"></span>
-        <div class="mt-2">در حال دریافت پوشه‌ها...</div>
-    </div>
-}
-else if (!UserFoldersList.Any())
-{
-    <div class="text-center py-5 text-muted">
-        <i class="bi bi-folder2-open mb-3" style="font-size: 48px; opacity: 0.5;"></i>
-        <div>شما هنوز هیچ پوشه‌ای ایجاد نکرده‌اید.</div>
-    </div>
-}
-else
-{
-    <div class="folder-grid">
-        @foreach (var folder in UserFoldersList)
-        {
-            <div class="folder-card shadow-sm">
-                <div class="d-flex justify-content-between align-items-start mb-3">
-                    <i class="bi bi-folder-fill" style="font-size: 32px; color: var(--primary);"></i>
-                    <button class="btn btn-ghost text-danger" style="padding: 4px 8px;" @onclick="() => DeleteFolder(folder.Id)">
-                        <i class="bi bi-trash"></i>
-                    </button>
-                </div>
-                <h3 class="folder-name mb-1">@folder.Name</h3>
-                <div class="text-muted" style="font-size: 12px;">تعداد دانلودها: @folder.Downloads.Count</div>
+    @if (IsLoading)
+    {
+        <div class="step-card text-center py-5">
+            <div class="empty-state">
+                <span class="spinner" style="width: 48px; height: 48px; border-width: 4px;"></span>
+                <div class="empty-title mt-3">در حال دریافت پوشه‌ها...</div>
             </div>
-        }
-    </div>
-}
+        </div>
+    }
+    else if (!UserFoldersList.Any())
+    {
+        <div class="step-card">
+            <div class="empty-state">
+                <i class="bi bi-folder2-open empty-icon"></i>
+                <div class="empty-title">پوشه‌ای یافت نشد.</div>
+                <div class="empty-sub">شما هنوز هیچ پوشه‌ای ایجاد نکرده‌اید.</div>
+            </div>
+        </div>
+    }
+    else
+    {
+        <div class="folder-grid">
+            @foreach (var folder in UserFoldersList)
+            {
+                <div class="step-card folder-card">
+                    <div class="d-flex justify-content-between align-items-start mb-3">
+                        <i class="bi bi-folder-fill" style="font-size: 32px; color: var(--primary);"></i>
+                        <button class="btn btn-sm btn-ghost text-danger" style="padding: 4px 8px;" @onclick="() => DeleteFolder(folder.Id)">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </div>
+                    <h3 class="folder-name mb-1">@folder.Name</h3>
+                    <div class="text-muted mt-2" style="font-size: 12px;">
+                        <span class="badge badge-queued">تعداد دانلودها: @folder.Downloads.Count</span>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+</div>
 
 @if (ShowModal)
 {
     <div class="modal-backdrop">
-        <div class="modal-content shadow-lg">
-            <h3 class="h5 mb-3">ایجاد پوشه جدید</h3>
+        <div class="modal-content shadow-lg step-card">
+            <h3 class="h5 mb-4 border-bottom pb-2" style="border-color: var(--border) !important;">ایجاد پوشه جدید</h3>
             
             <EditForm Model="NewFolder" OnValidSubmit="SaveFolder">
-                <div class="form-group">
-                    <label class="form-label">نام پوشه</label>
-                    <InputText @bind-Value="NewFolder.Name" class="form-input" placeholder="مثلاً ویدیوهای آموزشی" required />
+                <div class="input-group-rtl mb-4" style="flex-direction: column; align-items: stretch; gap: 0.5rem;">
+                    <label>نام پوشه</label>
+                    <InputText @bind-Value="NewFolder.Name" class="form-control-rtl w-100" placeholder="مثلاً ویدیوهای آموزشی" required />
                 </div>
                 
                 <div class="d-flex justify-content-end gap-2 mt-4">
-                    <button type="button" class="btn btn-ghost" @onclick="() => ShowModal = false">انصراف</button>
-                    <button type="submit" class="btn btn-primary">ذخیره</button>
+                    <button type="button" class="btn btn-ghost px-4" @onclick="() => ShowModal = false">انصراف</button>
+                    <button type="submit" class="btn-primary-rtl px-4">ذخیره</button>
                 </div>
             </EditForm>
         </div>
@@ -78,15 +92,12 @@ else
 <style>
     .folder-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+        grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
         gap: 1.5rem;
     }
     .folder-card {
-        background-color: var(--surface);
-        border: 1px solid var(--border);
-        border-radius: 12px;
-        padding: 1.25rem;
         transition: transform 0.2s, box-shadow 0.2s;
+        cursor: pointer;
     }
     .folder-card:hover {
         transform: translateY(-2px);
@@ -94,7 +105,7 @@ else
         border-color: var(--primary-glow);
     }
     .folder-name {
-        font-size: 15px;
+        font-size: 16px;
         font-weight: 500;
         white-space: nowrap;
         overflow: hidden;
@@ -111,12 +122,8 @@ else
         z-index: 1050;
     }
     .modal-content {
-        background-color: var(--surface);
-        border: 1px solid var(--border);
-        border-radius: 16px;
         width: 100%;
         max-width: 400px;
-        padding: 1.5rem;
     }
 </style>
 

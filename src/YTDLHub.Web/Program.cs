@@ -1,6 +1,5 @@
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.EntityFrameworkCore;
-using Syncfusion.Blazor;
 using Telegram.Bot;
 using YTDLHub.Bot.Handlers;
 using YTDLHub.Bot.Services;
@@ -11,16 +10,10 @@ using YTDLHub.Web.Components;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Register Syncfusion License
-var syncfusionLicense = builder.Configuration["Syncfusion:LicenseKey"] 
-    ?? "MTIzQDMzMzEyZTMwMmUzMDNiMzMzMTNiR0VoN2NVYVlJaHVIRHpqeTgxakxVVktQUmhUWkgvdzlUQVRtTW9XYXNmVT0=";
-Syncfusion.Licensing.SyncfusionLicenseProvider.RegisterLicense(syncfusionLicense);
-
 // Add services to the container.
 builder.Services.AddControllers();
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
-builder.Services.AddSyncfusionBlazor();
 
 // Authentication
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
