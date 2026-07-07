@@ -41,6 +41,18 @@ public sealed class YtDlpService : IDownloadService
     public YtDlpService(IOptions<YtDlpOptions> opts, ILogger<YtDlpService> logger, IServiceProvider sp)
     {
         _opts = opts.Value;
+        
+        // Handle OS-specific yt-dlp path
+        if (System.Runtime.InteropServices.RuntimeInformation.IsOSPlatform(System.Runtime.InteropServices.OSPlatform.Windows))
+        {
+            if (string.IsNullOrEmpty(_opts.ExecutablePath) || _opts.ExecutablePath == "yt-dlp")
+                _opts.ExecutablePath = "..\\..\\data\\yt-dlp.exe";
+        }
+        else
+        {
+            _opts.ExecutablePath = "yt-dlp"; // Globally installed on Linux
+        }
+
         _logger = logger;
         _sp = sp;
         _concurrencyGate = new SemaphoreSlim(_opts.MaxConcurrentDownloads, _opts.MaxConcurrentDownloads);
