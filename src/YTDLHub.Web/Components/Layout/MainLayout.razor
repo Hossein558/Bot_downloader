@@ -1,5 +1,8 @@
 @inherits LayoutComponentBase
+@using Microsoft.AspNetCore.Components.Authorization
+@using System.Security.Claims
 @inject NavigationManager Nav
+@inject AuthenticationStateProvider AuthState
 
 <div class="page">
     <div class="sidebar">
@@ -9,11 +12,25 @@
     <main>
         <div class="top-row">
             <div class="app-title">
+                <i class="bi bi-cloud-arrow-down-fill" style="color: var(--brand-primary); font-size: 1.1rem;"></i>
                 <span>@PageTitle</span>
             </div>
-            <div class="d-flex align-items-center gap-3">
-                <span class="user-info">خوش آمدید، @(UserName ?? "کاربر")</span>
-                <button class="btn-danger-rtl btn-sm d-flex align-items-center gap-2" @onclick="Logout">
+
+            <div class="topbar-right">
+                @if (!IsProfileComplete)
+                {
+                    <a href="/profile/setup" class="topbar-badge topbar-badge-incomplete">
+                        <i class="bi bi-exclamation-triangle-fill"></i>
+                        پروفایل ناقص — تکمیل کنید
+                    </a>
+                }
+
+                <span class="user-info">
+                    <i class="bi bi-person-circle me-2" style="color: var(--brand-primary);"></i>
+                    @DisplayName
+                </span>
+
+                <button class="btn btn-ghost btn-sm" @onclick="Logout" style="gap: 0.35rem;">
                     <i class="bi bi-box-arrow-right"></i>
                     خروج
                 </button>
@@ -37,6 +54,23 @@
 @code {
     [CascadingParameter] public string? UserName { get; set; }
     public string PageTitle = "داشبورد";
+
+    private string DisplayName = "کاربر";
+    private bool IsProfileComplete = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var state = await AuthState.GetAuthenticationStateAsync();
+        if (state.User.Identity?.IsAuthenticated == true)
+        {
+            DisplayName = state.User.FindFirstValue("DisplayName")
+                       ?? state.User.Identity.Name
+                       ?? "کاربر";
+
+            var profileClaim = state.User.FindFirstValue("IsProfileComplete");
+            IsProfileComplete = profileClaim == "True";
+        }
+    }
 
     private void Logout()
     {

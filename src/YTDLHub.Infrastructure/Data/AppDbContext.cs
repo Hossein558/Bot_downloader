@@ -11,6 +11,7 @@ public class AppDbContext : DbContext
     public DbSet<UserFolder> Folders { get; set; } = null!;
     public DbSet<LoginOtp> LoginOtps { get; set; } = null!;
     public DbSet<DownloadJob> DownloadJobs { get; set; } = null!;
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -19,9 +20,23 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<AppUser>(e =>
         {
             e.HasKey(x => x.Id);
-            e.HasIndex(x => x.TelegramId).IsUnique();
-            e.Property(x => x.TelegramId).IsRequired();
-            e.Property(x => x.DisplayName).HasMaxLength(200);
+
+            // Username is now the primary login key — must be unique
+            e.HasIndex(x => x.Username).IsUnique();
+            e.Property(x => x.Username).HasMaxLength(100).IsRequired();
+            e.Property(x => x.PasswordHash).IsRequired();
+
+            // TelegramId is now optional
+            e.HasIndex(x => x.TelegramId).IsUnique().HasFilter("\"TelegramId\" IS NOT NULL");
+
+            e.Property(x => x.FirstName).HasMaxLength(100);
+            e.Property(x => x.LastName).HasMaxLength(100);
+            e.Property(x => x.Email).HasMaxLength(200);
+            e.Property(x => x.PhoneNumber).HasMaxLength(30);
+            e.Property(x => x.TelegramUsername).HasMaxLength(100);
+
+            // Computed DisplayName is ignored in DB
+            e.Ignore(x => x.DisplayName);
         });
 
         // UserFolder
@@ -35,7 +50,7 @@ public class AppDbContext : DbContext
             e.Property(x => x.Name).HasMaxLength(200).IsRequired();
         });
 
-        // LoginOtp
+        // LoginOtp (kept for potential bot use)
         modelBuilder.Entity<LoginOtp>(e =>
         {
             e.HasKey(x => x.Id);

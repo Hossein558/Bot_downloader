@@ -1,78 +1,100 @@
+using BCrypt.Net;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
-using Telegram.Bot;
 using YTDLHub.Core.Interfaces;
 using YTDLHub.Core.Models;
 using YTDLHub.Infrastructure.Data;
 
 namespace YTDLHub.Infrastructure.Services;
 
-public class TelegramAuthService : IAuthService
+/// <summary>
+/// Web authentication service — handles Username/Password based registration and login.
+/// </summary>
+public class WebAuthService : IAuthService
 {
     private readonly AppDbContext _db;
-    private readonly ITelegramBotClient _bot;
-    private readonly ILogger<TelegramAuthService> _logger;
+    private readonly ILogger<WebAuthService> _logger;
 
-    public TelegramAuthService(AppDbContext db, ITelegramBotClient bot, ILogger<TelegramAuthService> logger)
+    public WebAuthService(AppDbContext db, ILogger<WebAuthService> logger)
     {
         _db     = db;
-        _bot    = bot;
         _logger = logger;
     }
 
-    public async Task<bool> SendOtpAsync(long telegramId, CancellationToken ct = default)
+    /// <inheritdoc />
+    public async Task<(bool Success, string? Error)> RegisterAsync(
+        string username,
+        string password,
+        CancellationToken ct = default)
     {
-        // Clean up old codes for this user
-        var oldCodes = await _db.LoginOtps
-            .Where(o => o.TelegramId == telegramId && !o.IsUsed)
-            .ToListAsync(ct);
-        _db.LoginOtps.RemoveRange(oldCodes);
+        // ── Validation ─────────────────────────────────────────────────────
+        if (string.IsNullOrWhiteSpace(username) || username.Length < 3)
+            return (false, "نام کاربری باید حداقل ۳ کاراکتر داشته باشد.");
 
-        // Generate 6-digit code
-        var code = Random.Shared.Next(100_000, 999_999).ToString();
+        if (string.IsNullOrWhiteSpace(password) || password.Length < 6)
+            return (false, "رمز عبور باید حداقل ۶ کاراکتر داشته باشد.");
 
-        var otp = new LoginOtp
+        // Only allow alphanumeric + underscore
+        if (!System.Text.RegularExpressions.Regex.IsMatch(username, @"^[a-zA-Z0-9_]+$"))
+            return (false, "نام کاربری فقط می‌تواند شامل حروف انگلیسی، اعداد و _ باشد.");
+
+        // ── Uniqueness check ───────────────────────────────────────────────
+        var exists = await _db.Users.AnyAsync(
+            u => u.Username.ToLower() == username.ToLower(), ct);
+
+        if (exists)
+            return (false, "این نام کاربری قبلاً ثبت شده است.");
+
+        // ── Create user ────────────────────────────────────────────────────
+        var passwordHash = BCrypt.Net.BCrypt.HashPassword(password, workFactor: 12);
+
+        var user = new AppUser
         {
-            TelegramId = telegramId,
-            Code       = code,
-            ExpiresAt  = DateTime.UtcNow.AddMinutes(5)
+            Username     = username,
+            PasswordHash = passwordHash,
+            IsProfileComplete = false,
         };
-        _db.LoginOtps.Add(otp);
+
+        _db.Users.Add(user);
+
+        // Create default folder
+        var defaultFolder = new UserFolder
+        {
+            UserId    = user.Id,
+            Name      = "دانلودها",
+            IsDefault = true,
+        };
+        _db.Folders.Add(defaultFolder);
+
         await _db.SaveChangesAsync(ct);
 
-        try
-        {
-            await _bot.SendMessage(
-                chatId: telegramId,
-                text: $"🔐 *کد ورود به پنل YTDLHub*\n\n" +
-                      $"کد تأیید شما: `{code}`\n\n" +
-                      $"⏱ این کد تا ۵ دقیقه معتبر است.\n" +
-                      $"اگر این درخواست از شما نیست، آن را نادیده بگیرید.",
-                parseMode: Telegram.Bot.Types.Enums.ParseMode.Markdown,
-                cancellationToken: ct);
-            return true;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "Could not send OTP to TelegramId={TelegramId}. User may have never started the bot.", telegramId);
-            return false;
-        }
+        _logger.LogInformation("New web user registered: {Username} (Id={UserId})", username, user.Id);
+        return (true, null);
     }
 
-    public async Task<long?> VerifyOtpAsync(long telegramId, string code, CancellationToken ct = default)
+    /// <inheritdoc />
+    public async Task<AppUser?> LoginAsync(
+        string username,
+        string password,
+        CancellationToken ct = default)
     {
-        var otp = await _db.LoginOtps.FirstOrDefaultAsync(
-            o => o.TelegramId == telegramId &&
-                 o.Code == code &&
-                 !o.IsUsed &&
-                 o.ExpiresAt > DateTime.UtcNow,
-            ct);
+        if (string.IsNullOrWhiteSpace(username) || string.IsNullOrWhiteSpace(password))
+            return null;
 
-        if (otp == null) return null;
+        var user = await _db.Users.FirstOrDefaultAsync(
+            u => u.Username.ToLower() == username.ToLower(), ct);
 
-        otp.IsUsed = true;
+        if (user == null) return null;
+
+        if (!BCrypt.Net.BCrypt.Verify(password, user.PasswordHash))
+        {
+            _logger.LogWarning("Failed login attempt for username: {Username}", username);
+            return null;
+        }
+
+        user.LastSeenAt = DateTime.UtcNow;
         await _db.SaveChangesAsync(ct);
 
-        return telegramId;
+        return user;
     }
 }

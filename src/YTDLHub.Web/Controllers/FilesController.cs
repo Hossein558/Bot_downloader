@@ -6,6 +6,8 @@ using YTDLHub.Core.Models;
 using YTDLHub.Infrastructure.Options;
 using System.IO;
 using System.Threading.Tasks;
+using YTDLHub.Infrastructure.Data;
+using System.Linq;
 
 namespace YTDLHub.Web.Controllers;
 
@@ -14,12 +16,14 @@ namespace YTDLHub.Web.Controllers;
 public class FilesController : ControllerBase
 {
     private readonly IDownloadService _downloadService;
+    private readonly AppDbContext _db;
     private readonly YtDlpOptions _opts;
     private readonly ILogger<FilesController> _logger;
 
-    public FilesController(IDownloadService downloadService, IOptions<YtDlpOptions> opts, ILogger<FilesController> logger)
+    public FilesController(IDownloadService downloadService, AppDbContext db, IOptions<YtDlpOptions> opts, ILogger<FilesController> logger)
     {
         _downloadService = downloadService;
+        _db = db;
         _opts = opts.Value;
         _logger = logger;
     }
@@ -28,6 +32,13 @@ public class FilesController : ControllerBase
     public IActionResult DownloadFile(Guid jobId)
     {
         var job = _downloadService.GetJob(jobId);
+        
+        // If not in memory, it might be an older job stored in DB
+        if (job == null)
+        {
+            job = _db.DownloadJobs.FirstOrDefault(j => j.Id == jobId);
+        }
+
         if (job == null)
         {
             return NotFound("Job not found or has been cleaned up.");

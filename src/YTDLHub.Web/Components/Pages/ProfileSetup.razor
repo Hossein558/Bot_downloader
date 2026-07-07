@@ -1,0 +1,198 @@
+@page "/profile/setup"
+@rendermode InteractiveServer
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
+@using YTDLHub.Core.Interfaces
+@using YTDLHub.Core.Models
+@inject IUserService UserService
+@inject AuthenticationStateProvider AuthState
+@inject NavigationManager Nav
+@attribute [Authorize]
+
+<PageTitle>تکمیل پروفایل — YTDLHub</PageTitle>
+
+<div class="profile-setup-shell">
+    <div class="profile-setup-card">
+        <div class="profile-setup-header">
+            <div class="profile-setup-icon">
+                <i class="bi bi-person-badge-fill"></i>
+            </div>
+            <h1>تکمیل اطلاعات پروفایل</h1>
+            <p>برای استفاده از امکانات دانلود، لطفاً اطلاعات زیر را تکمیل کنید.</p>
+        </div>
+
+        <div class="profile-setup-required-info">
+            <i class="bi bi-info-circle-fill"></i>
+            <span>فیلدهای <strong>نام، نام خانوادگی و شماره تماس</strong> الزامی هستند. همچنین حداقل یکی از <strong>ایمیل یا آیدی تلگرام</strong> باید وارد شود.</span>
+        </div>
+
+        <EditForm Model="Model" OnValidSubmit="HandleSubmit" FormName="profile-setup-form">
+            <div class="profile-fields-grid">
+                <div class="profile-field">
+                    <label class="profile-label">
+                        <i class="bi bi-person-fill text-primary"></i>
+                        نام <span class="required-star">*</span>
+                    </label>
+                    <InputText @bind-Value="Model.FirstName" class="profile-input" placeholder="نام خود را وارد کنید" />
+                </div>
+
+                <div class="profile-field">
+                    <label class="profile-label">
+                        <i class="bi bi-person-fill text-primary"></i>
+                        نام خانوادگی <span class="required-star">*</span>
+                    </label>
+                    <InputText @bind-Value="Model.LastName" class="profile-input" placeholder="نام خانوادگی خود را وارد کنید" />
+                </div>
+
+                <div class="profile-field">
+                    <label class="profile-label">
+                        <i class="bi bi-telephone-fill text-success"></i>
+                        شماره تماس <span class="required-star">*</span>
+                    </label>
+                    <InputText @bind-Value="Model.PhoneNumber" class="profile-input" placeholder="09xxxxxxxxx" dir="ltr" />
+                </div>
+
+                <div class="profile-field">
+                    <label class="profile-label">
+                        <i class="bi bi-envelope-fill text-warning"></i>
+                        ایمیل
+                        <span class="optional-tag">یکی الزامی</span>
+                    </label>
+                    <InputText @bind-Value="Model.Email" class="profile-input" placeholder="example@email.com" dir="ltr" />
+                </div>
+
+                <div class="profile-field profile-field-full">
+                    <label class="profile-label">
+                        <i class="bi bi-telegram text-info"></i>
+                        آیدی تلگرام (Username)
+                        <span class="optional-tag">یکی الزامی</span>
+                    </label>
+                    <div class="profile-input-prefix-wrap">
+                        <span class="profile-input-prefix">@@</span>
+                        <InputText @bind-Value="Model.TelegramUsername" class="profile-input profile-input-with-prefix" placeholder="your_telegram_username" dir="ltr" />
+                    </div>
+                    <span class="profile-field-hint">آیدی تلگرام شما (بدون @@)</span>
+                </div>
+            </div>
+
+            @if (!string.IsNullOrEmpty(Error))
+            {
+                <div class="auth-alert auth-alert-error mt-3">
+                    <i class="bi bi-exclamation-circle-fill"></i>
+                    @Error
+                </div>
+            }
+
+            @if (!string.IsNullOrEmpty(Success))
+            {
+                <div class="auth-alert auth-alert-success mt-3">
+                    <i class="bi bi-check-circle-fill"></i>
+                    @Success
+                </div>
+            }
+
+            <div class="profile-setup-actions">
+                <button type="submit" class="auth-btn-primary" disabled="@IsLoading">
+                    @if (IsLoading)
+                    {
+                        <span class="auth-spinner"></span>
+                        <span>در حال ذخیره...</span>
+                    }
+                    else
+                    {
+                        <i class="bi bi-check2-circle"></i>
+                        <span>ذخیره و ادامه</span>
+                    }
+                </button>
+            </div>
+        </EditForm>
+    </div>
+</div>
+
+@code {
+    private ProfileModel Model = new();
+    private bool IsLoading = false;
+    private string Error = string.Empty;
+    private string Success = string.Empty;
+    private Guid UserId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var state = await AuthState.GetAuthenticationStateAsync();
+        var idStr = state.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+
+        if (!Guid.TryParse(idStr, out UserId))
+        {
+            Nav.NavigateTo("/login", forceLoad: true);
+            return;
+        }
+
+        // Pre-fill existing data
+        var user = await UserService.GetUserByIdAsync(UserId);
+        if (user != null)
+        {
+            Model.FirstName       = user.FirstName ?? string.Empty;
+            Model.LastName        = user.LastName ?? string.Empty;
+            Model.PhoneNumber     = user.PhoneNumber ?? string.Empty;
+            Model.Email           = user.Email ?? string.Empty;
+            Model.TelegramUsername = user.TelegramUsername ?? string.Empty;
+        }
+    }
+
+    private async Task HandleSubmit()
+    {
+        Error = string.Empty;
+        Success = string.Empty;
+
+        // Validate required fields
+        if (string.IsNullOrWhiteSpace(Model.FirstName))  { Error = "نام الزامی است."; return; }
+        if (string.IsNullOrWhiteSpace(Model.LastName))   { Error = "نام خانوادگی الزامی است."; return; }
+        if (string.IsNullOrWhiteSpace(Model.PhoneNumber)){ Error = "شماره تماس الزامی است."; return; }
+
+        if (string.IsNullOrWhiteSpace(Model.Email) && string.IsNullOrWhiteSpace(Model.TelegramUsername))
+        {
+            Error = "حداقل یکی از ایمیل یا آیدی تلگرام باید وارد شود.";
+            return;
+        }
+
+        IsLoading = true;
+        StateHasChanged();
+
+        try
+        {
+            await UserService.UpdateProfileAsync(
+                UserId,
+                Model.FirstName.Trim(),
+                Model.LastName.Trim(),
+                string.IsNullOrWhiteSpace(Model.Email) ? null : Model.Email.Trim(),
+                Model.PhoneNumber.Trim(),
+                string.IsNullOrWhiteSpace(Model.TelegramUsername) ? null : Model.TelegramUsername.TrimStart('@').Trim(),
+                null); // TelegramId (numeric) not set here
+
+            Success = "پروفایل با موفقیت ذخیره شد. در حال انتقال...";
+            StateHasChanged();
+
+            await Task.Delay(1200);
+
+            // Refresh cookie claims and redirect to dashboard
+            Nav.NavigateTo("/auth/refresh", forceLoad: true);
+        }
+        catch (Exception ex)
+        {
+            Error = $"خطا: {ex.Message}";
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
+    public class ProfileModel
+    {
+        public string FirstName        { get; set; } = string.Empty;
+        public string LastName         { get; set; } = string.Empty;
+        public string PhoneNumber      { get; set; } = string.Empty;
+        public string Email            { get; set; } = string.Empty;
+        public string TelegramUsername { get; set; } = string.Empty;
+    }
+}

@@ -18,6 +18,7 @@ public class UserService : IUserService
         _logger = logger;
     }
 
+    /// <summary>Gets or creates a user by Telegram ID (used by bot).</summary>
     public async Task<AppUser> GetOrCreateUserAsync(long telegramId, string? username, string? firstName, CancellationToken ct = default)
     {
         var user = await _db.Users
@@ -26,29 +27,30 @@ public class UserService : IUserService
 
         if (user != null)
         {
-            // Update display info
             if (!string.IsNullOrEmpty(username)) user.TelegramUsername = username;
-            if (!string.IsNullOrEmpty(firstName)) user.DisplayName = firstName;
             user.LastSeenAt = DateTime.UtcNow;
             await _db.SaveChangesAsync(ct);
             return user;
         }
 
-        // Create new user
+        // Bot users get a generated username
+        var generatedUsername = $"tg_{telegramId}";
         user = new AppUser
         {
-            TelegramId      = telegramId,
+            TelegramId       = telegramId,
             TelegramUsername = username,
-            DisplayName     = firstName ?? $"User_{telegramId}",
+            Username         = generatedUsername,
+            PasswordHash     = string.Empty, // Bot users don't use web login
+            FirstName        = firstName,
+            IsProfileComplete = false,
         };
 
         _db.Users.Add(user);
 
-        // Create default "Downloads" folder
         var defaultFolder = new UserFolder
         {
             UserId    = user.Id,
-            Name      = "Downloads",
+            Name      = "دانلودها",
             IsDefault = true,
         };
         _db.Folders.Add(defaultFolder);
@@ -64,6 +66,9 @@ public class UserService : IUserService
 
     public async Task<AppUser?> GetUserByIdAsync(Guid userId, CancellationToken ct = default)
         => await _db.Users.FindAsync([userId], ct);
+
+    public async Task<AppUser?> GetUserByUsernameAsync(string username, CancellationToken ct = default)
+        => await _db.Users.FirstOrDefaultAsync(u => u.Username.ToLower() == username.ToLower(), ct);
 
     public async Task<List<UserFolder>> GetUserFoldersAsync(Guid userId, CancellationToken ct = default)
         => await _db.Folders
@@ -106,5 +111,32 @@ public class UserService : IUserService
             user.LastSeenAt = DateTime.UtcNow;
             await _db.SaveChangesAsync(ct);
         }
+    }
+
+    public async Task<AppUser> UpdateProfileAsync(
+        Guid userId,
+        string firstName,
+        string lastName,
+        string? email,
+        string? phoneNumber,
+        string? telegramUsername,
+        long? telegramId,
+        CancellationToken ct = default)
+    {
+        var user = await _db.Users.FindAsync([userId], ct)
+            ?? throw new InvalidOperationException($"User {userId} not found.");
+
+        user.FirstName        = firstName?.Trim();
+        user.LastName         = lastName?.Trim();
+        user.Email            = email?.Trim();
+        user.PhoneNumber      = phoneNumber?.Trim();
+        user.TelegramUsername = telegramUsername?.Trim();
+        user.TelegramId       = telegramId;
+        user.IsProfileComplete = user.CheckProfileComplete();
+
+        await _db.SaveChangesAsync(ct);
+
+        _logger.LogInformation("Profile updated for user {UserId}. Complete={Complete}", userId, user.IsProfileComplete);
+        return user;
     }
 }

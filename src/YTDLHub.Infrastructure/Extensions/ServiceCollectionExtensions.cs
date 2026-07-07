@@ -70,7 +70,7 @@ public static class ServiceCollectionExtensions
             opts.UseSqlite($"Data Source={dbPath}"));
 
         services.AddScoped<IUserService, UserService>();
-        services.AddScoped<IAuthService, TelegramAuthService>();
+        services.AddScoped<IAuthService, WebAuthService>();
 
         return services;
     }

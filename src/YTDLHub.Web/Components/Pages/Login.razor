@@ -1,100 +1,104 @@
 @page "/login"
 @layout EmptyLayout
+@rendermode InteractiveServer
 @using YTDLHub.Core.Interfaces
 @inject IAuthService AuthService
 @inject NavigationManager Nav
 @inject IJSRuntime JS
 
-<PageTitle>ورود به پنل - YTDLHub</PageTitle>
+<PageTitle>ورود — YTDLHub</PageTitle>
 
-<div class="login-shell" dir="rtl">
-    <div class="login-card shadow-lg">
-        <div class="login-logo">
-            <i class="bi bi-robot text-white"></i>
+<div class="auth-shell">
+    <div class="auth-bg-glow"></div>
+
+    <div class="auth-card">
+        <div class="auth-brand">
+            <div class="auth-logo-wrap">
+                <i class="bi bi-cloud-arrow-down-fill"></i>
+            </div>
+            <h1 class="auth-title">YTDLHub</h1>
+            <p class="auth-subtitle">پنل حرفه‌ای دانلود محتوا</p>
         </div>
-        
-        <h1 class="login-title">ورود به پنل مدیریت</h1>
-        <p class="login-sub">با استفاده از ربات تلگرام خود وارد شوید</p>
 
-        @if (Step == 1)
-        {
-            <div class="login-step active">
-                <EditForm Model="LoginModel" OnValidSubmit="SendCode">
-                    <div class="form-group">
-                        <label class="form-label">آیدی عددی تلگرام</label>
-                        <InputNumber @bind-Value="LoginModel.TelegramId" class="form-input text-center" placeholder="مثلاً 123456789" required />
-                        <div class="form-text text-muted mt-2" style="font-size: 11px;">آیدی عددی خود را می‌توانید از ربات‌های ID یاب دریافت کنید.</div>
+        <div class="auth-form-section">
+            <h2 class="auth-form-title">ورود به حساب</h2>
+
+            <EditForm Model="Model" OnValidSubmit="HandleLogin" FormName="login-form">
+                <div class="auth-field">
+                    <label class="auth-label">
+                        <i class="bi bi-person-fill"></i>
+                        نام کاربری
+                    </label>
+                    <InputText @bind-Value="Model.Username"
+                               class="auth-input"
+                               placeholder="نام کاربری خود را وارد کنید"
+                               autocomplete="username"
+                               dir="ltr" />
+                </div>
+
+                <div class="auth-field">
+                    <label class="auth-label">
+                        <i class="bi bi-lock-fill"></i>
+                        رمز عبور
+                    </label>
+                    <div class="auth-input-wrap">
+                        <InputText @bind-Value="Model.Password"
+                                   type="@(ShowPassword ? "text" : "password")"
+                                   class="auth-input"
+                                   placeholder="رمز عبور خود را وارد کنید"
+                                   autocomplete="current-password"
+                                   dir="ltr" />
+                        <button type="button" class="auth-eye-btn" @onclick="() => ShowPassword = !ShowPassword" tabindex="-1">
+                            <i class="bi @(ShowPassword ? "bi-eye-slash" : "bi-eye")"></i>
+                        </button>
                     </div>
-                    
-                    @if (!string.IsNullOrEmpty(Error))
-                    {
-                        <div class="alert alert-error mb-3">@Error</div>
-                    }
+                </div>
 
-                    <button type="submit" class="btn btn-primary w-100 justify-content-center mt-2" disabled="@IsLoading">
-                        @if (IsLoading)
-                        {
-                            <span class="spinner me-2"></span>
-                            <span>در حال ارسال...</span>
-                        }
-                        else
-                        {
-                            <span>دریافت کد تایید</span>
-                            <i class="bi bi-arrow-left ms-2"></i>
-                        }
-                    </button>
-                </EditForm>
-            </div>
-        }
-        else if (Step == 2)
-        {
-            <div class="login-step active">
-                <EditForm Model="VerifyModel" OnValidSubmit="VerifyCode">
-                    <div class="form-group text-center">
-                        <label class="form-label mb-3">کد ارسال شده به تلگرام را وارد کنید</label>
-                        <InputText @bind-Value="VerifyModel.Code" class="form-input otp-input" maxlength="6" required autocomplete="off" />
+                @if (!string.IsNullOrEmpty(Error))
+                {
+                    <div class="auth-alert auth-alert-error">
+                        <i class="bi bi-exclamation-circle-fill"></i>
+                        @Error
                     </div>
-                    
-                    @if (!string.IsNullOrEmpty(Error))
-                    {
-                        <div class="alert alert-error mb-3">@Error</div>
-                    }
+                }
 
-                    <button type="submit" class="btn btn-primary w-100 justify-content-center mt-2" disabled="@IsLoading">
-                        @if (IsLoading)
-                        {
-                            <span class="spinner me-2"></span>
-                            <span>در حال بررسی...</span>
-                        }
-                        else
-                        {
-                            <span>ورود به پنل</span>
-                            <i class="bi bi-box-arrow-in-left ms-2"></i>
-                        }
-                    </button>
-                    
-                    <button type="button" class="btn btn-ghost w-100 justify-content-center mt-2" @onclick="() => { Step = 1; Error = string.Empty; }">
-                        اصلاح آیدی
-                    </button>
-                </EditForm>
+                <button type="submit" class="auth-btn-primary" disabled="@IsLoading">
+                    @if (IsLoading)
+                    {
+                        <span class="auth-spinner"></span>
+                        <span>در حال ورود...</span>
+                    }
+                    else
+                    {
+                        <i class="bi bi-box-arrow-in-left"></i>
+                        <span>ورود به پنل</span>
+                    }
+                </button>
+            </EditForm>
+
+            <div class="auth-divider">
+                <span>حساب ندارید؟</span>
             </div>
-        }
+
+            <a href="/register" class="auth-btn-secondary">
+                <i class="bi bi-person-plus-fill"></i>
+                ایجاد حساب جدید
+            </a>
+        </div>
     </div>
 </div>
 
 @code {
-    private int Step = 1;
+    private LoginModel Model = new();
     private bool IsLoading = false;
+    private bool ShowPassword = false;
     private string Error = string.Empty;
 
-    private LoginForm LoginModel = new();
-    private VerifyForm VerifyModel = new();
-
-    private async Task SendCode()
+    private async Task HandleLogin()
     {
-        if (LoginModel.TelegramId <= 0)
+        if (string.IsNullOrWhiteSpace(Model.Username) || string.IsNullOrWhiteSpace(Model.Password))
         {
-            Error = "لطفاً آیدی معتبر وارد کنید.";
+            Error = "لطفاً نام کاربری و رمز عبور را وارد کنید.";
             return;
         }
 
@@ -102,54 +106,23 @@
         Error = string.Empty;
         StateHasChanged();
 
-        var sent = await AuthService.SendOtpAsync(LoginModel.TelegramId);
-        
+        var user = await AuthService.LoginAsync(Model.Username, Model.Password);
+
         IsLoading = false;
-        
-        if (sent)
+
+        if (user != null)
         {
-            Step = 2;
+            Nav.NavigateTo($"/auth/signin?userId={user.Id}", forceLoad: true);
         }
         else
         {
-            Error = "خطا در ارسال کد. آیا ربات را Start کرده‌اید؟";
+            Error = "نام کاربری یا رمز عبور اشتباه است.";
         }
     }
 
-    private async Task VerifyCode()
+    public class LoginModel
     {
-        if (string.IsNullOrWhiteSpace(VerifyModel.Code) || VerifyModel.Code.Length != 6)
-        {
-            Error = "کد باید ۶ رقم باشد.";
-            return;
-        }
-
-        IsLoading = true;
-        Error = string.Empty;
-        StateHasChanged();
-
-        var verifiedId = await AuthService.VerifyOtpAsync(LoginModel.TelegramId, VerifyModel.Code);
-        
-        IsLoading = false;
-
-        if (verifiedId.HasValue)
-        {
-            // Login successful, redirect to auth controller to set cookie
-            Nav.NavigateTo($"/auth/login?id={verifiedId.Value}", forceLoad: true);
-        }
-        else
-        {
-            Error = "کد نامعتبر است یا منقضی شده.";
-        }
-    }
-
-    public class LoginForm
-    {
-        public long TelegramId { get; set; }
-    }
-
-    public class VerifyForm
-    {
-        public string Code { get; set; } = string.Empty;
+        public string Username { get; set; } = string.Empty;
+        public string Password { get; set; } = string.Empty;
     }
 }

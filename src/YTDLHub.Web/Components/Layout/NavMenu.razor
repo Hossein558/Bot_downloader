@@ -1,43 +1,73 @@
+@using Microsoft.AspNetCore.Components.Authorization
+
 <div class="top-row ps-3 navbar navbar-dark">
     <div class="container-fluid">
         <a class="navbar-brand" href="">
-            <i class="bi bi-cloud-arrow-down-fill brand-icon text-primary me-2"></i>
-            مدیریت دانلودها
+            <div class="brand-icon">
+                <i class="bi bi-cloud-arrow-down-fill"></i>
+            </div>
+            YTDLHub
         </a>
     </div>
 </div>
 
-<div class="nav-scrollable">
+<div class="nav-scrollable" style="flex: 1;">
     <nav class="flex-column">
         <div class="nav-section-title">منوی اصلی</div>
-        
+
         <div class="nav-item">
             <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
-                <i class="bi bi-house-door-fill nav-icon ms-2"></i>
+                <i class="bi bi-grid-fill nav-icon"></i>
                 داشبورد
             </NavLink>
         </div>
-        
+
         <div class="nav-item">
             <NavLink class="nav-link" href="downloads">
-                <i class="bi bi-cloud-arrow-down nav-icon ms-2"></i>
+                <i class="bi bi-cloud-arrow-down-fill nav-icon"></i>
                 دانلود جدید
             </NavLink>
         </div>
-        
-        <div class="nav-item">
-            <NavLink class="nav-link" href="folders">
-                <i class="bi bi-folder-fill nav-icon ms-2"></i>
-                پوشه‌ها
-            </NavLink>
-        </div>
-        
+
+        <div class="nav-section-title">محتوای من</div>
+
         <div class="nav-item">
             <NavLink class="nav-link" href="history">
-                <i class="bi bi-clock-history nav-icon ms-2"></i>
-                تاریخچه
+                <i class="bi bi-clock-history nav-icon"></i>
+                تاریخچه دانلودها
+            </NavLink>
+        </div>
+
+        <div class="nav-item">
+            <NavLink class="nav-link" href="folders">
+                <i class="bi bi-folder2-open nav-icon"></i>
+                پوشه‌های من
+            </NavLink>
+        </div>
+
+        <div class="nav-section-title">حساب کاربری</div>
+
+        <div class="nav-item">
+            <NavLink class="nav-link" href="profile/setup">
+                <i class="bi bi-person-badge-fill nav-icon"></i>
+                پروفایل من
             </NavLink>
         </div>
     </nav>
 </div>
 
+<div class="sidebar-user">
+    <AuthorizeView>
+        <Authorized>
+            <div class="sidebar-user-card">
+                <div class="sidebar-avatar">
+                    <i class="bi bi-person-fill" style="font-size:1rem;"></i>
+                </div>
+                <div class="sidebar-user-info">
+                    <div class="sidebar-user-name">@context.User.Identity?.Name</div>
+                    <div class="sidebar-user-role">کاربر فعال</div>
+                </div>
+            </div>
+        </Authorized>
+    </AuthorizeView>
+</div>
