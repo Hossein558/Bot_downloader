@@ -55,7 +55,7 @@ services:
       - YtDlp__DownloadDirectory=/app/downloads
       - YtDlp__FileRetentionMinutes=60
       - YtDlp__CookiesFilePath=/app/cookies.txt
-      - YtDlp__ProxyUrl=socks5://warp:1080
+      - YtDlp__ProxyUrl=socks5://warp:9091
       - YtDlp__PotProviderUrl=http://bgutil-provider:4416
     volumes:
       - ./downloads:/app/downloads
