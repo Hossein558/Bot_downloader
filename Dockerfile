@@ -7,14 +7,15 @@ COPY YTDLHub.sln ./
 COPY src/YTDLHub.Core/YTDLHub.Core.csproj src/YTDLHub.Core/
 COPY src/YTDLHub.Infrastructure/YTDLHub.Infrastructure.csproj src/YTDLHub.Infrastructure/
 COPY src/YTDLHub.Bot/YTDLHub.Bot.csproj src/YTDLHub.Bot/
+COPY src/YTDLHub.Web/YTDLHub.Web.csproj src/YTDLHub.Web/
 
 RUN dotnet restore YTDLHub.sln
 
 COPY . ./
-RUN dotnet publish src/YTDLHub.Bot/YTDLHub.Bot.csproj -c Release -o out
+RUN dotnet publish src/YTDLHub.Web/YTDLHub.Web.csproj -c Release -o out
 
 # Runtime stage
-FROM mcr.microsoft.com/dotnet/runtime:9.0 AS runtime
+FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS runtime
 WORKDIR /app
 
 # Install system packages: python3, pip, ffmpeg, curl, unzip (for Deno installer)
@@ -36,4 +37,6 @@ RUN apt-get update && apt-get install -y \
 
 COPY --from=build-env /app/out .
 
-ENTRYPOINT ["dotnet", "YTDLHub.Bot.dll"]
+EXPOSE 8080
+
+ENTRYPOINT ["dotnet", "YTDLHub.Web.dll"]

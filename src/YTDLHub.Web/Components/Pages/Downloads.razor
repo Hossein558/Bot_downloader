@@ -1,0 +1,111 @@
+@page "/downloads"
+@using YTDLHub.Core.Interfaces
+@using YTDLHub.Core.Enums
+@using YTDLHub.Core.Models
+@inject IDownloadService DownloadService
+
+<PageTitle>YTDL Hub - New Download</PageTitle>
+
+<h1 class="h3 fw-bold mb-4"><i class="bi bi-cloud-arrow-down text-success me-2"></i>New Download</h1>
+
+<div class="row">
+    <div class="col-md-8 col-lg-6">
+        <div class="card bg-dark border-secondary shadow-sm">
+            <div class="card-body">
+                <EditForm Model="@Model" OnValidSubmit="HandleSubmit">
+                    <DataAnnotationsValidator />
+                    
+                    <div class="mb-3">
+                        <label class="form-label text-light">Video/Post URL</label>
+                        <SfTextBox @bind-Value="Model.Url" Placeholder="https://www.youtube.com/watch?v=..." CssClass="e-dark"></SfTextBox>
+                        <ValidationMessage For="@(() => Model.Url)" class="text-danger" />
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="form-label text-light">Quality Preset</label>
+                        <SfDropDownList TValue="VideoQuality" TItem="QualityOption" DataSource="@Qualities" @bind-Value="Model.Quality" CssClass="e-dark">
+                            <DropDownListFieldSettings Text="Name" Value="Value"></DropDownListFieldSettings>
+                        </SfDropDownList>
+                    </div>
+
+                    <SfButton IsPrimary="true" CssClass="e-success w-100" Disabled="@IsSubmitting">
+                        @if (IsSubmitting)
+                        {
+                            <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                            <span>Processing...</span>
+                        }
+                        else
+                        {
+                            <i class="bi bi-download me-2"></i> <span>Start Download</span>
+                        }
+                    </SfButton>
+                </EditForm>
+                
+                @if (!string.IsNullOrEmpty(Message))
+                {
+                    <div class="alert alert-@MessageType mt-3 mb-0">
+                        @Message
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private DownloadFormModel Model = new();
+    private bool IsSubmitting = false;
+    private string Message = "";
+    private string MessageType = "info";
+
+    private List<QualityOption> Qualities = new List<QualityOption>
+    {
+        new QualityOption { Name = "Best Available (Default)", Value = VideoQuality.Best },
+        new QualityOption { Name = "1080p HD", Value = VideoQuality.HD1080 },
+        new QualityOption { Name = "720p HD", Value = VideoQuality.HD720 },
+        new QualityOption { Name = "480p SD", Value = VideoQuality.SD480 },
+        new QualityOption { Name = "360p SD", Value = VideoQuality.SD360 },
+        new QualityOption { Name = "Audio Only (MP3)", Value = VideoQuality.AudioMp3 },
+        new QualityOption { Name = "Audio Only (M4A)", Value = VideoQuality.AudioM4A }
+    };
+
+    private async Task HandleSubmit()
+    {
+        IsSubmitting = true;
+        Message = "";
+        StateHasChanged();
+
+        try
+        {
+            await DownloadService.StartDownloadAsync(Model.Url, Model.Quality);
+            Message = "Download queued successfully! Check the Dashboard for progress.";
+            MessageType = "success";
+            Model.Url = ""; // Reset form
+        }
+        catch (Exception ex)
+        {
+            Message = $"Error: {ex.Message}";
+            MessageType = "danger";
+        }
+        finally
+        {
+            IsSubmitting = false;
+            StateHasChanged();
+        }
+    }
+
+    public class DownloadFormModel
+    {
+        [System.ComponentModel.DataAnnotations.Required(ErrorMessage = "URL is required")]
+        [System.ComponentModel.DataAnnotations.Url(ErrorMessage = "Please enter a valid URL")]
+        public string Url { get; set; } = "";
+        
+        public VideoQuality Quality { get; set; } = VideoQuality.Best;
+    }
+
+    public class QualityOption
+    {
+        public string Name { get; set; } = "";
+        public VideoQuality Value { get; set; }
+    }
+}

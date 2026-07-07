@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <ItemGroup>
+    <ProjectReference Include="..\YTDLHub.Core\YTDLHub.Core.csproj" />
+    <ProjectReference Include="..\YTDLHub.Infrastructure\YTDLHub.Infrastructure.csproj" />
+    <ProjectReference Include="..\YTDLHub.Bot\YTDLHub.Bot.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Syncfusion.Blazor" Version="33.2.15" />
+    <PackageReference Include="Syncfusion.Blazor.Themes" Version="34.1.29" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+</Project>

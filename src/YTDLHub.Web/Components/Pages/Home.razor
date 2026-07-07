@@ -1,0 +1,117 @@
+@page "/"
+@using System.Timers
+@using YTDLHub.Core.Interfaces
+@using YTDLHub.Core.Models
+@using YTDLHub.Core.Enums
+@implements IDisposable
+@inject IDownloadService DownloadService
+
+<PageTitle>YTDL Hub - Dashboard</PageTitle>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h3 fw-bold m-0"><i class="bi bi-speedometer2 text-primary me-2"></i>Dashboard</h1>
+    <span class="badge bg-primary fs-6">@Jobs.Count() Total Jobs</span>
+</div>
+
+<div class="card bg-dark border-secondary shadow-sm">
+    <div class="card-header border-secondary bg-dark d-flex justify-content-between align-items-center">
+        <h5 class="m-0 text-light"><i class="bi bi-list-task me-2"></i>Active & Recent Downloads</h5>
+    </div>
+    <div class="card-body p-0">
+        <SfGrid DataSource="@Jobs" AllowPaging="true" AllowSorting="true" class="e-dark">
+            <GridPageSettings PageSize="10"></GridPageSettings>
+            <GridColumns>
+                <GridColumn Field="@nameof(DownloadJob.Url)" HeaderText="URL" Width="250" ClipMode="ClipMode.EllipsisWithTooltip"></GridColumn>
+                <GridColumn Field="@nameof(DownloadJob.Quality)" HeaderText="Quality" Width="100"></GridColumn>
+                <GridColumn HeaderText="Status" Width="150">
+                    <Template>
+                        @{
+                            var job = (context as DownloadJob);
+                            if (job != null)
+                            {
+                                if (job.Status == JobStatus.Downloading)
+                                {
+                                    <div class="d-flex align-items-center">
+                                        <div class="progress flex-grow-1 me-2 bg-secondary" style="height: 8px;">
+                                            <div class="progress-bar progress-bar-striped progress-bar-animated bg-success" role="progressbar" style="width: @(job.Progress)%;" aria-valuenow="@job.Progress" aria-valuemin="0" aria-valuemax="100"></div>
+                                        </div>
+                                        <small class="text-white-50">@job.Progress%</small>
+                                    </div>
+                                    <small class="text-muted d-block mt-1">@job.SpeedDisplay | @job.EtaDisplay</small>
+                                }
+                                else if (job.Status == JobStatus.Completed)
+                                {
+                                    <span class="badge bg-success">Completed</span>
+                                }
+                                else if (job.Status == JobStatus.Failed)
+                                {
+                                    <span class="badge bg-danger" title="@job.ErrorMessage">Failed</span>
+                                }
+                                else
+                                {
+                                    <span class="badge bg-warning text-dark">@job.Status.ToString()</span>
+                                }
+                            }
+                        }
+                    </Template>
+                </GridColumn>
+                <GridColumn HeaderText="File Size" Width="120">
+                    <Template>
+                        @{
+                            var job = (context as DownloadJob);
+                            if (job != null && job.FileSizeBytes > 0)
+                            {
+                                <span>@(Math.Round((double)job.FileSizeBytes / 1048576, 2)) MB</span>
+                            }
+                            else
+                            {
+                                <span class="text-muted">-</span>
+                            }
+                        }
+                    </Template>
+                </GridColumn>
+                <GridColumn HeaderText="Action" Width="100">
+                    <Template>
+                        @{
+                            var job = (context as DownloadJob);
+                            if (job != null && job.Status == JobStatus.Completed)
+                            {
+                                <a href="/api/files/download/@job.Id" class="btn btn-sm btn-outline-light" target="_blank">
+                                    <i class="bi bi-download"></i>
+                                </a>
+                            }
+                        }
+                    </Template>
+                </GridColumn>
+            </GridColumns>
+        </SfGrid>
+    </div>
+</div>
+
+@code {
+    private IEnumerable<DownloadJob> Jobs = new List<DownloadJob>();
+    private Timer? _timer;
+
+    protected override void OnInitialized()
+    {
+        RefreshData();
+        _timer = new Timer(1000);
+        _timer.Elapsed += (sender, args) =>
+        {
+            RefreshData();
+            InvokeAsync(StateHasChanged);
+        };
+        _timer.Start();
+    }
+
+    private void RefreshData()
+    {
+        // Order by most recently created/updated
+        Jobs = DownloadService.GetAllJobs().OrderByDescending(j => j.CompletedAt ?? DateTime.MaxValue).ToList();
+    }
+
+    public void Dispose()
+    {
+        _timer?.Dispose();
+    }
+}

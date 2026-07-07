@@ -27,6 +27,11 @@ public interface IDownloadService
     DownloadJob? GetJob(Guid jobId);
 
     /// <summary>
+    /// Retrieves all currently tracked jobs.
+    /// </summary>
+    IEnumerable<DownloadJob> GetAllJobs();
+
+    /// <summary>
     /// Detects the platform from a URL without making a network request.
     /// </summary>
     Platform DetectPlatform(string url);

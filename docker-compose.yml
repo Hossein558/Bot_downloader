@@ -37,18 +37,21 @@ services:
   #   volumes:
   #     - telegram-bot-api-data:/var/lib/telegram-bot-api
 
-  # ── Telegram Bot ────────────────────────────────────────────────────────────
-  ytdlhub-bot:
+  # ── Web Panel & Telegram Bot ────────────────────────────────────────────────
+  ytdlhub-web:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: ytdlhub-bot
+    container_name: ytdlhub-web
     restart: always
+    ports:
+      - "8080:8080"
     depends_on:
       - warp
       - bgutil-provider
       # - telegram-bot-api
     environment:
+      - ASPNETCORE_URLS=http://+:8080
       - Telegram__BotToken=8993945202:AAHkdr64Aqp551g-SNLPNwHuAgDK5SEaiKI
       # - Telegram__BaseUrl=http://telegram-bot-api:8081 # Uncomment this to use local API Server
       - YtDlp__ExecutablePath=yt-dlp

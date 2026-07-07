@@ -1,9 +1,11 @@
-# YTDLHub Bot (Telegram Video Downloader)
+# YTDLHub (Telegram Video Downloader & Web Dashboard)
 
-A robust, private Telegram Bot for downloading videos from YouTube, Instagram, TikTok, and Twitter. 
-This bot runs completely on Docker and uses Cloudflare WARP and PO Tokens to bypass YouTube's anti-bot protections.
+A robust, private Telegram Bot and Blazor Web Panel for downloading videos from YouTube, Instagram, TikTok, and Twitter. 
+This unified application runs completely on Docker and uses Cloudflare WARP and PO Tokens to bypass YouTube's anti-bot protections.
 
 ## Features
+- **Web Dashboard:** A premium Syncfusion-powered Blazor web UI (Port 8080) to monitor and start downloads.
+- **Telegram Bot:** Direct integration for users to request downloads via chat.
 - **YouTube Anti-Ban:** Routes YouTube downloads through a local Cloudflare WARP SOCKS5 proxy to appear as a residential user.
 - **PO Tokens:** Automatically generates YouTube Proof-of-Origin tokens.
 - **Cookie Support:** Uses `cookies.txt` for authenticated downloads.
@@ -24,25 +26,28 @@ git clone https://github.com/Hossein558/Bot_downloader.git
 cd Bot_downloader
 ```
 
-### 3. Start the Bot
-Run the following Docker command to build the image and start all services (Bot, WARP Proxy, PO Token Generator):
+### 3. Start the Bot & Dashboard
+Run the following Docker command to build the image and start all services (Web, Bot, WARP Proxy, PO Token Generator):
 ```bash
 docker compose up -d --build
 ```
 
-That's it! The bot is now running. 
+That's it! 
+- The **Bot** is now running on Telegram.
+- The **Web Dashboard** is available at `http://<your-server-ip>:8080`.
+
 You can check the logs using:
 ```bash
-docker compose logs -f ytdlhub-bot
+docker compose logs -f ytdlhub-web
 ```
 
 ---
 
 ## ⚙️ Configuration Details
 
-Everything the bot needs to run is already committed to this repository.
-- **Bot Token:** Hardcoded as an environment variable in `docker-compose.yml`.
-- **Cookies:** The file `cookies.txt` is located in the root folder and automatically mounted into the container. If the bot ever stops downloading restricted YouTube videos, simply update `cookies.txt` with a fresh export.
+Everything the application needs to run is already committed to this repository.
+- **Bot Token & Syncfusion License:** Configured as environment variables or `appsettings.json`.
+- **Cookies:** The file `cookies.txt` is located in the root folder and automatically mounted into the container.
 
 ### 🛑 Bypassing Telegram's 50MB Upload Limit
 
@@ -55,14 +60,16 @@ To bypass this and upload files up to **2 GB**, you must run a **Local Telegram 
 2. Open `docker-compose.yml`.
 3. Uncomment the `telegram-bot-api` service block.
 4. Replace `YOUR_API_ID` and `YOUR_API_HASH` with your keys.
-5. In the `ytdlhub-bot` service, uncomment `- telegram-bot-api` under `depends_on`.
+5. In the `ytdlhub-web` service, uncomment `- telegram-bot-api` under `depends_on`.
 6. Uncomment the `- Telegram__BaseUrl=http://telegram-bot-api:8081` environment variable.
 7. Restart the stack: `docker compose up -d --build`
 
 ---
 
 ## 📁 Repository Structure
-- `src/` : The C# .NET 9 source code for the bot.
-- `docker-compose.yml` : Orchestrates the Bot, WARP proxy, and Sidecar services.
-- `Dockerfile` : The build instructions for the .NET bot.
+- `src/YTDLHub.Web/` : The Blazor Web Dashboard project (Entry point).
+- `src/YTDLHub.Bot/` : The Telegram Bot logic and background worker.
+- `src/YTDLHub.Core/` & `src/YTDLHub.Infrastructure/` : Shared models and `yt-dlp` services.
+- `docker-compose.yml` : Orchestrates the App, WARP proxy, and Sidecar services.
+- `Dockerfile` : The build instructions for the .NET application.
 - `cookies.txt` : Authentication cookies for yt-dlp to bypass YouTube age/login restrictions.

@@ -104,6 +104,9 @@ public sealed class YtDlpService : IDownloadService
     public DownloadJob? GetJob(Guid jobId) =>
         _jobs.TryGetValue(jobId, out var job) ? job : null;
 
+    public IEnumerable<DownloadJob> GetAllJobs() =>
+        _jobs.Values;
+
     // ── Internal helpers ─────────────────────────────────────────────────────
 
     private async Task RunDownloadAsync(DownloadJob job, CancellationToken ct)
