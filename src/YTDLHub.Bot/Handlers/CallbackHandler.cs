@@ -37,6 +37,7 @@ public sealed class CallbackHandler
     {
         var data   = callback.Data ?? string.Empty;
         var chatId = callback.Message!.Chat.Id;
+        _logger.LogInformation("Callback received for chat {ChatId}, data: {Data}", chatId, data);
 
         // Answer the callback to remove the "loading" spinner on the button
         await bot.AnswerCallbackQuery(callback.Id, cancellationToken: ct);
@@ -101,10 +102,13 @@ public sealed class CallbackHandler
 
             if (job.FileSizeBytes <= MaxTelegramFileSizeBytes)
             {
+                _logger.LogInformation("Sending file to chat {ChatId}, file: {File}, size: {Size} bytes", chatId, job.FileName, job.FileSizeBytes);
                 await SendFileAsync(bot, chatId, job, ct);
+                _logger.LogInformation("Successfully sent file to chat {ChatId}", chatId);
             }
             else
             {
+                _logger.LogWarning("File size {Size} bytes exceeds Telegram limit of {Limit} bytes", job.FileSizeBytes, MaxTelegramFileSizeBytes);
                 var sizeMb = job.FileSizeBytes / (1024.0 * 1024.0);
                 await bot.SendMessage(
                     chatId,
@@ -235,6 +239,14 @@ public sealed class CallbackHandler
                 chatId:            chatId,
                 audio:             inputFile,
                 caption:           $"🎵 {job.VideoTitle ?? "فایل صوتی"}",
+                cancellationToken: ct);
+        }
+        else if (ext is ".jpg" or ".jpeg" or ".png" or ".webp")
+        {
+            await bot.SendPhoto(
+                chatId:            chatId,
+                photo:             inputFile,
+                caption:           $"📸 {job.VideoTitle ?? "تصویر"}",
                 cancellationToken: ct);
         }
         else

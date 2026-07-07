@@ -36,6 +36,7 @@ public sealed class MessageHandler
     public async Task HandleAsync(ITelegramBotClient bot, Message message, CancellationToken ct)
     {
         var text = message.Text ?? string.Empty;
+        _logger.LogInformation("Received message from Chat ID: {ChatId}, Text: {Text}", message.Chat.Id, text);
         var match = UrlRegex.Match(text);
 
         if (!match.Success)
