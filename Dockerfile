@@ -12,7 +12,7 @@ COPY src/YTDLHub.Web/YTDLHub.Web.csproj src/YTDLHub.Web/
 RUN dotnet restore YTDLHub.sln
 
 COPY . ./
-RUN dotnet publish src/YTDLHub.Web/YTDLHub.Web.csproj -c Release -o out
+RUN rm -f src/YTDLHub.Bot/appsettings.json && dotnet publish src/YTDLHub.Web/YTDLHub.Web.csproj -c Release -o out
 
 # Runtime stage
 FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS runtime
