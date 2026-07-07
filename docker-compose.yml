@@ -23,19 +23,19 @@ services:
     container_name: bgutil-provider
     restart: always
 
-  # ── Local Telegram Bot API Server ───────────────────────────────────────────
-  # Bypasses the 50MB file size upload limit of the official Telegram servers,
-  # allowing sending files up to 2000MB (2GB) directly to chats.
-  telegram-bot-api:
-    image: aiogram/telegram-bot-api:latest
-    container_name: telegram-bot-api
-    restart: always
-    environment:
-      - TELEGRAM_API_ID=6
-      - TELEGRAM_API_HASH=eb062f7f7077bcc3b25e37262d6e59a6
-      - TELEGRAM_LOCAL=1
-    volumes:
-      - telegram-bot-api-data:/var/lib/telegram-bot-api
+  # ── Local Telegram Bot API Server (Optional) ──────────────────────────────
+  # Uncomment this block and provide YOUR valid API_ID and API_HASH if you
+  # want to bypass Telegram's 50MB upload limit. (Register at my.telegram.org)
+  # telegram-bot-api:
+  #   image: aiogram/telegram-bot-api:latest
+  #   container_name: telegram-bot-api
+  #   restart: always
+  #   environment:
+  #     - TELEGRAM_API_ID=YOUR_API_ID
+  #     - TELEGRAM_API_HASH=YOUR_API_HASH
+  #     - TELEGRAM_LOCAL=1
+  #   volumes:
+  #     - telegram-bot-api-data:/var/lib/telegram-bot-api
 
   # ── Telegram Bot ────────────────────────────────────────────────────────────
   ytdlhub-bot:
@@ -47,10 +47,10 @@ services:
     depends_on:
       - warp
       - bgutil-provider
-      - telegram-bot-api
+      # - telegram-bot-api
     environment:
       - Telegram__BotToken=8993945202:AAHkdr64Aqp551g-SNLPNwHuAgDK5SEaiKI
-      - Telegram__BaseUrl=http://telegram-bot-api:8081
+      # - Telegram__BaseUrl=http://telegram-bot-api:8081 # Uncomment this to use local API Server
       - YtDlp__ExecutablePath=yt-dlp
       - YtDlp__DownloadDirectory=/app/downloads
       - YtDlp__FileRetentionMinutes=60
