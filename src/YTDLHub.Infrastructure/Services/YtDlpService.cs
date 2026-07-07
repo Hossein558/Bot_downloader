@@ -59,7 +59,7 @@ public sealed class YtDlpService : IDownloadService
     {
         _logger.LogInformation("Fetching info for URL: {Url}", url);
 
-        var args = BuildBaseArgs();
+        var args = BuildBaseArgs(url);
         args.AddRange(["--dump-json", "--no-playlist", "--no-warnings", url]);
 
         var json = await RunProcessAsync(args, ct);
@@ -95,7 +95,7 @@ public sealed class YtDlpService : IDownloadService
 
             var outputTemplate = Path.Combine(_opts.DownloadDirectory, $"{job.Id}.%(ext)s");
 
-            var args = BuildBaseArgs();
+            var args = BuildBaseArgs(job.Url);
 
             // Merge video+audio to mp4; for audio-only, convert to requested codec
             if (job.Quality is VideoQuality.AudioMp3)
@@ -310,31 +310,35 @@ public sealed class YtDlpService : IDownloadService
         return new Process { StartInfo = psi, EnableRaisingEvents = true };
     }
 
-    private List<string> BuildBaseArgs()
+    private List<string> BuildBaseArgs(string url)
     {
         var args = new List<string>();
+        var platform = DetectPlatform(url);
 
-        if (!string.IsNullOrWhiteSpace(_opts.ProxyUrl))
+        if (platform == Platform.YouTube)
         {
-            args.Add("--proxy");
-            args.Add(_opts.ProxyUrl);
+            if (!string.IsNullOrWhiteSpace(_opts.ProxyUrl))
+            {
+                args.Add("--proxy");
+                args.Add(_opts.ProxyUrl);
+            }
+
+            // PO Token sidecar: passes the bgutil provider base URL as an extractor-arg.
+            if (!string.IsNullOrWhiteSpace(_opts.PotProviderUrl))
+            {
+                args.Add("--extractor-args");
+                args.Add($"youtube:getpot_bgutil_baseurl={_opts.PotProviderUrl}");
+            }
         }
-
-        if (!string.IsNullOrWhiteSpace(_opts.CookiesFilePath) &&
-            File.Exists(_opts.CookiesFilePath) &&
-            new FileInfo(_opts.CookiesFilePath).Length > 0)
+        else if (platform == Platform.Instagram)
         {
-            args.Add("--cookies");
-            args.Add(_opts.CookiesFilePath);
-        }
-
-        // PO Token sidecar: passes the bgutil provider base URL as an extractor-arg.
-        // yt-dlp-get-pot plugin picks this up and requests a PO token before each extraction,
-        // which allows bypassing YouTube bot-detection on datacenter IP addresses.
-        if (!string.IsNullOrWhiteSpace(_opts.PotProviderUrl))
-        {
-            args.Add("--extractor-args");
-            args.Add($"youtube:getpot_bgutil_baseurl={_opts.PotProviderUrl}");
+            if (!string.IsNullOrWhiteSpace(_opts.CookiesFilePath) &&
+                File.Exists(_opts.CookiesFilePath) &&
+                new FileInfo(_opts.CookiesFilePath).Length > 0)
+            {
+                args.Add("--cookies");
+                args.Add(_opts.CookiesFilePath);
+            }
         }
 
         return args;
