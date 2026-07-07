@@ -19,6 +19,8 @@ public interface IDownloadService
         string url,
         VideoQuality quality,
         string? formatId = null,
+        Guid? userId = null,
+        Guid? folderId = null,
         CancellationToken ct = default);
 
     /// <summary>

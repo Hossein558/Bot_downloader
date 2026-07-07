@@ -24,15 +24,18 @@ public sealed class MessageHandler
     private readonly IDownloadService _downloader;
     private readonly UserStateService _userState;
     private readonly ILogger<MessageHandler> _logger;
+    private readonly IUserService _userService;
 
     public MessageHandler(
         IDownloadService downloader,
         UserStateService userState,
-        ILogger<MessageHandler> logger)
+        ILogger<MessageHandler> logger,
+        IUserService userService)
     {
         _downloader = downloader;
         _userState  = userState;
         _logger     = logger;
+        _userService = userService;
     }
 
     public async Task HandleAsync(ITelegramBotClient bot, Message message, CancellationToken ct)
@@ -82,10 +85,10 @@ public sealed class MessageHandler
                 DownloadJob? job = null;
                 try
                 {
-                    // Fetch info first to get correct metadata (title, etc.)
                     var info = await _downloader.GetVideoInfoAsync(url, ct);
-
-                    job = await _downloader.StartDownloadAsync(url, VideoQuality.Best, null, ct);
+                    
+                    var user = await _userService.GetUserByTelegramIdAsync(message.Chat.Id);
+                    job = await _downloader.StartDownloadAsync(url, VideoQuality.Best, null, user?.Id, null, ct);
                     job.VideoTitle = info.Title;
 
                     // Track progress using CallbackHandler helper

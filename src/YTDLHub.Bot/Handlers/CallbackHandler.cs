@@ -22,15 +22,18 @@ public sealed class CallbackHandler
     private readonly IDownloadService _downloader;
     private readonly UserStateService _userState;
     private readonly ILogger<CallbackHandler> _logger;
+    private readonly IUserService _userService;
 
     public CallbackHandler(
         IDownloadService downloader,
         UserStateService userState,
-        ILogger<CallbackHandler> logger)
+        ILogger<CallbackHandler> logger,
+        IUserService userService)
     {
         _downloader = downloader;
         _userState  = userState;
         _logger     = logger;
+        _userService = userService;
     }
 
     public async Task HandleAsync(ITelegramBotClient bot, CallbackQuery callback, CancellationToken ct)
@@ -92,7 +95,8 @@ public sealed class CallbackHandler
         DownloadJob? job = null;
         try
         {
-            job = await _downloader.StartDownloadAsync(state.Url, quality, formatId, ct);
+            var user = await _userService.GetUserByTelegramIdAsync(chatId);
+            job = await _downloader.StartDownloadAsync(state.Url, quality, formatId, user?.Id, null, ct);
             job.VideoTitle = state.Info.Title;
 
             // Keep editing progress message until done

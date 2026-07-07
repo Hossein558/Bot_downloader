@@ -3,6 +3,7 @@ using System.Diagnostics;
 using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using YTDLHub.Core.Enums;
@@ -33,13 +34,15 @@ public sealed class YtDlpService : IDownloadService
     // ── Fields ───────────────────────────────────────────────────────────────
     private readonly YtDlpOptions _opts;
     private readonly ILogger<YtDlpService> _logger;
+    private readonly IServiceProvider _sp;
     private readonly ConcurrentDictionary<Guid, DownloadJob> _jobs = new();
     private readonly SemaphoreSlim _concurrencyGate;
 
-    public YtDlpService(IOptions<YtDlpOptions> opts, ILogger<YtDlpService> logger)
+    public YtDlpService(IOptions<YtDlpOptions> opts, ILogger<YtDlpService> logger, IServiceProvider sp)
     {
         _opts = opts.Value;
         _logger = logger;
+        _sp = sp;
         _concurrencyGate = new SemaphoreSlim(_opts.MaxConcurrentDownloads, _opts.MaxConcurrentDownloads);
 
         // Ensure the download directory exists
@@ -90,9 +93,11 @@ public sealed class YtDlpService : IDownloadService
         string url,
         VideoQuality quality,
         string? formatId = null,
+        Guid? userId = null,
+        Guid? folderId = null,
         CancellationToken ct = default)
     {
-        var job = new DownloadJob { Url = url, Quality = quality, FormatId = formatId };
+        var job = new DownloadJob { Url = url, Quality = quality, FormatId = formatId, UserId = userId, FolderId = folderId, Platform = DetectPlatform(url) };
         _jobs[job.Id] = job;
 
         // Fire-and-forget on a thread-pool thread so the caller is not blocked
@@ -208,6 +213,14 @@ public sealed class YtDlpService : IDownloadService
             job.RaiseProgressChanged();
 
             _logger.LogInformation("Job {JobId} completed. File: {File} ({Size} bytes)", job.Id, outputFile, fi.Length);
+
+            // Save to DB
+            using (var scope = _sp.CreateScope())
+            {
+                var db = scope.ServiceProvider.GetRequiredService<YTDLHub.Infrastructure.Data.AppDbContext>();
+                db.DownloadJobs.Add(job);
+                await db.SaveChangesAsync(ct);
+            }
 
             // Schedule cleanup
             _ = Task.Delay(TimeSpan.FromMinutes(_opts.FileRetentionMinutes))

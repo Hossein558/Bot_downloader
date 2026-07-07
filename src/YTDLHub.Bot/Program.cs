@@ -27,6 +27,7 @@ var host = Host.CreateDefaultBuilder(args)
 
         // ── yt-dlp Infrastructure ─────────────────────────────────────────
         services.AddYtDlpInfrastructure();
+        services.AddYtDlpDatabase(config);
 
         // ── Bot Services ──────────────────────────────────────────────────
         services.AddSingleton<UserStateService>();

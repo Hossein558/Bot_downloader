@@ -1,0 +1,134 @@
+@page "/history"
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
+@using YTDLHub.Core.Models
+@using YTDLHub.Infrastructure.Data
+@using Microsoft.EntityFrameworkCore
+@inject AppDbContext DbContext
+@inject AuthenticationStateProvider AuthStateProvider
+@attribute [Authorize]
+
+<PageTitle>تاریخچه دانلودها - YTDLHub</PageTitle>
+
+<div class="mb-4 d-flex justify-content-between align-items-center">
+    <div>
+        <h2 class="h4 mb-1">تاریخچه دانلودها</h2>
+        <p class="text-muted" style="font-size: 13px;">فایل‌های دانلود شده شما (تا ۷ روز نگهداری می‌شوند)</p>
+    </div>
+</div>
+
+@if (IsLoading)
+{
+    <div class="text-center py-5 text-muted">
+        <span class="spinner"></span>
+        <div class="mt-2">در حال دریافت تاریخچه...</div>
+    </div>
+}
+else if (!Jobs.Any())
+{
+    <div class="text-center py-5 text-muted">
+        <i class="bi bi-clock-history mb-3" style="font-size: 48px; opacity: 0.5;"></i>
+        <div>شما هنوز هیچ فایلی دانلود نکرده‌اید.</div>
+    </div>
+}
+else
+{
+    <div class="table-responsive">
+        <table class="table" style="width: 100%; border-collapse: collapse;">
+            <thead>
+                <tr style="border-bottom: 1px solid var(--border); color: var(--text-muted); font-size: 12px;">
+                    <th class="py-3 text-end">نام فایل</th>
+                    <th class="py-3 text-center">پلتفرم</th>
+                    <th class="py-3 text-center">حجم</th>
+                    <th class="py-3 text-center">تاریخ</th>
+                    <th class="py-3 text-start">وضعیت</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var job in Jobs)
+                {
+                    <tr style="border-bottom: 1px solid var(--border-light);">
+                        <td class="py-3 text-end" style="max-width: 250px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                            @(job.FileName ?? job.Url)
+                        </td>
+                        <td class="py-3 text-center">
+                            @if (job.Platform == YTDLHub.Core.Enums.Platform.YouTube)
+                            {
+                                <i class="bi bi-youtube text-danger fs-5"></i>
+                            }
+                            else if (job.Platform == YTDLHub.Core.Enums.Platform.Instagram)
+                            {
+                                <i class="bi bi-instagram text-warning fs-5"></i>
+                            }
+                            else
+                            {
+                                <i class="bi bi-link-45deg fs-5"></i>
+                            }
+                        </td>
+                        <td class="py-3 text-center" dir="ltr">
+                            @(job.FileSizeBytes > 0 ? $"{(job.FileSizeBytes / 1024.0 / 1024.0):F1} MB" : "-")
+                        </td>
+                        <td class="py-3 text-center text-muted" style="font-size: 12px;">
+                            @job.CompletedAt?.ToString("yyyy/MM/dd HH:mm")
+                        </td>
+                        <td class="py-3 text-start">
+                            @if (job.Status == YTDLHub.Core.Enums.JobStatus.Completed)
+                            {
+                                <span class="badge" style="background-color: rgba(34, 197, 94, 0.1); color: #22c55e;">تکمیل شده</span>
+                            }
+                            else if (job.Status == YTDLHub.Core.Enums.JobStatus.Failed)
+                            {
+                                <span class="badge" style="background-color: rgba(239, 68, 68, 0.1); color: #ef4444;">خطا</span>
+                            }
+                            else
+                            {
+                                <span class="badge" style="background-color: rgba(168, 162, 158, 0.1); color: #a8a29e;">لغو شده</span>
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}
+
+<style>
+    .badge {
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-size: 11px;
+        font-weight: 500;
+    }
+</style>
+
+@code {
+    private bool IsLoading = true;
+    private Guid UserId;
+    private List<DownloadJob> Jobs = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        if (authState.User.Identity?.IsAuthenticated == true)
+        {
+            var userIdStr = authState.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            if (Guid.TryParse(userIdStr, out UserId))
+            {
+                await LoadHistory();
+            }
+        }
+    }
+
+    private async Task LoadHistory()
+    {
+        IsLoading = true;
+        // Fetch from DB (past 7 days could be filtered here if needed)
+        Jobs = await DbContext.DownloadJobs
+            .Where(j => j.UserId == UserId && (j.Status == YTDLHub.Core.Enums.JobStatus.Completed || j.Status == YTDLHub.Core.Enums.JobStatus.Failed))
+            .OrderByDescending(j => j.CreatedAt)
+            .Take(50)
+            .ToListAsync();
+            
+        IsLoading = false;
+    }
+}

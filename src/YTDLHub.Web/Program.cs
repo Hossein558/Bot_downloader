@@ -1,8 +1,11 @@
+using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.EntityFrameworkCore;
 using Syncfusion.Blazor;
 using Telegram.Bot;
 using YTDLHub.Bot.Handlers;
 using YTDLHub.Bot.Services;
 using YTDLHub.Bot.Workers;
+using YTDLHub.Infrastructure.Data;
 using YTDLHub.Infrastructure.Extensions;
 using YTDLHub.Web.Components;
 
@@ -18,6 +21,17 @@ builder.Services.AddControllers();
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 builder.Services.AddSyncfusionBlazor();
+
+// Authentication
+builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
+    .AddCookie(options =>
+    {
+        options.LoginPath = "/login";
+        options.LogoutPath = "/logout";
+        options.ExpireTimeSpan = TimeSpan.FromDays(30);
+    });
+builder.Services.AddAuthorization();
+builder.Services.AddCascadingAuthenticationState();
 
 // ── Telegram Bot Client ───────────────────────────────────────────
 var token = builder.Configuration["Telegram:BotToken"];
@@ -35,12 +49,13 @@ if (!string.IsNullOrWhiteSpace(token))
 }
 else
 {
-    // If not provided in configuration, try environment variable or skip registering
-    // This allows the Web App to run even if the Bot Token isn't provided (e.g., UI dev mode)
+    // Provide a dummy client for EF Core design-time
+    builder.Services.AddSingleton<ITelegramBotClient>(new TelegramBotClient("123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11"));
 }
 
-// ── yt-dlp Infrastructure ─────────────────────────────────────────
+// ── yt-dlp & Database Infrastructure ──────────────────────────────
 builder.Services.AddYtDlpInfrastructure();
+builder.Services.AddYtDlpDatabase(builder.Configuration);
 
 // ── Bot Services ──────────────────────────────────────────────────
 builder.Services.AddSingleton<UserStateService>();
@@ -57,17 +72,26 @@ if (!string.IsNullOrWhiteSpace(token))
 
 var app = builder.Build();
 
+// Auto-migrate Database
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    db.Database.Migrate();
+}
+
 // Configure the HTTP request pipeline.
 if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Error", createScopeForErrors: true);
-    // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
     app.UseHsts();
 }
 
 app.UseHttpsRedirection();
+app.UseStaticFiles();
 app.UseAntiforgery();
-app.MapStaticAssets();
+
+app.UseAuthentication();
+app.UseAuthorization();
 
 app.MapControllers();
 

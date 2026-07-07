@@ -1,0 +1,201 @@
+@page "/folders"
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
+@using YTDLHub.Core.Models
+@using YTDLHub.Core.Interfaces
+@using YTDLHub.Infrastructure.Data
+@inject AppDbContext DbContext
+@inject AuthenticationStateProvider AuthStateProvider
+@inject NavigationManager Nav
+@attribute [Authorize]
+
+<PageTitle>پوشه‌های من - YTDLHub</PageTitle>
+
+<div class="mb-4 d-flex justify-content-between align-items-center">
+    <div>
+        <h2 class="h4 mb-1">پوشه‌های من</h2>
+        <p class="text-muted" style="font-size: 13px;">مدیریت پوشه‌های دانلود برای دسته‌بندی فایل‌ها</p>
+    </div>
+    <button class="btn btn-primary" @onclick="ShowAddFolderModal">
+        <i class="bi bi-folder-plus me-2"></i> پوشه جدید
+    </button>
+</div>
+
+@if (IsLoading)
+{
+    <div class="text-center py-5 text-muted">
+        <span class="spinner"></span>
+        <div class="mt-2">در حال دریافت پوشه‌ها...</div>
+    </div>
+}
+else if (!UserFoldersList.Any())
+{
+    <div class="text-center py-5 text-muted">
+        <i class="bi bi-folder2-open mb-3" style="font-size: 48px; opacity: 0.5;"></i>
+        <div>شما هنوز هیچ پوشه‌ای ایجاد نکرده‌اید.</div>
+    </div>
+}
+else
+{
+    <div class="folder-grid">
+        @foreach (var folder in UserFoldersList)
+        {
+            <div class="folder-card shadow-sm">
+                <div class="d-flex justify-content-between align-items-start mb-3">
+                    <i class="bi bi-folder-fill" style="font-size: 32px; color: var(--primary);"></i>
+                    <button class="btn btn-ghost text-danger" style="padding: 4px 8px;" @onclick="() => DeleteFolder(folder.Id)">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                </div>
+                <h3 class="folder-name mb-1">@folder.Name</h3>
+                <div class="text-muted" style="font-size: 12px;">تعداد دانلودها: @folder.Downloads.Count</div>
+            </div>
+        }
+    </div>
+}
+
+@if (ShowModal)
+{
+    <div class="modal-backdrop">
+        <div class="modal-content shadow-lg">
+            <h3 class="h5 mb-3">ایجاد پوشه جدید</h3>
+            
+            <EditForm Model="NewFolder" OnValidSubmit="SaveFolder">
+                <div class="form-group">
+                    <label class="form-label">نام پوشه</label>
+                    <InputText @bind-Value="NewFolder.Name" class="form-input" placeholder="مثلاً ویدیوهای آموزشی" required />
+                </div>
+                
+                <div class="d-flex justify-content-end gap-2 mt-4">
+                    <button type="button" class="btn btn-ghost" @onclick="() => ShowModal = false">انصراف</button>
+                    <button type="submit" class="btn btn-primary">ذخیره</button>
+                </div>
+            </EditForm>
+        </div>
+    </div>
+}
+
+<style>
+    .folder-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+        gap: 1.5rem;
+    }
+    .folder-card {
+        background-color: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 1.25rem;
+        transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .folder-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 16px rgba(0,0,0,0.2) !important;
+        border-color: var(--primary-glow);
+    }
+    .folder-name {
+        font-size: 15px;
+        font-weight: 500;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .modal-backdrop {
+        position: fixed;
+        top: 0; left: 0; right: 0; bottom: 0;
+        background-color: rgba(0, 0, 0, 0.6);
+        backdrop-filter: blur(4px);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 1050;
+    }
+    .modal-content {
+        background-color: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        width: 100%;
+        max-width: 400px;
+        padding: 1.5rem;
+    }
+</style>
+
+@code {
+    private bool IsLoading = true;
+    private bool ShowModal = false;
+    private Guid UserId;
+    private List<UserFolder> UserFoldersList = new();
+    private FolderForm NewFolder = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        if (authState.User.Identity?.IsAuthenticated == true)
+        {
+            var userIdStr = authState.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            if (Guid.TryParse(userIdStr, out UserId))
+            {
+                await LoadFolders();
+            }
+        }
+    }
+
+    private async Task LoadFolders()
+    {
+        IsLoading = true;
+        UserFoldersList = DbContext.Folders
+            .Where(f => f.UserId == UserId)
+            .Select(f => new UserFolder
+            {
+                Id = f.Id,
+                Name = f.Name,
+                Downloads = DbContext.DownloadJobs.Where(d => d.FolderId == f.Id).ToList()
+            })
+            .ToList();
+            
+        IsLoading = false;
+    }
+
+    private void ShowAddFolderModal()
+    {
+        NewFolder = new FolderForm();
+        ShowModal = true;
+    }
+
+    private async Task SaveFolder()
+    {
+        if (string.IsNullOrWhiteSpace(NewFolder.Name)) return;
+
+        var folder = new UserFolder
+        {
+            UserId = UserId,
+            Name = NewFolder.Name
+        };
+
+        DbContext.Folders.Add(folder);
+        await DbContext.SaveChangesAsync();
+
+        ShowModal = false;
+        await LoadFolders();
+    }
+
+    private async Task DeleteFolder(Guid folderId)
+    {
+        var folder = await DbContext.Folders.FindAsync(folderId);
+        if (folder != null && folder.UserId == UserId)
+        {
+            DbContext.Folders.Remove(folder);
+            
+            var jobs = DbContext.DownloadJobs.Where(j => j.FolderId == folderId);
+            foreach(var job in jobs) job.FolderId = null;
+
+            await DbContext.SaveChangesAsync();
+            await LoadFolders();
+        }
+    }
+
+    public class FolderForm
+    {
+        public string Name { get; set; } = string.Empty;
+    }
+}

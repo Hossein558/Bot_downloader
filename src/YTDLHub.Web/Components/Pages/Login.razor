@@ -1,0 +1,155 @@
+@page "/login"
+@layout EmptyLayout
+@using YTDLHub.Core.Interfaces
+@inject IAuthService AuthService
+@inject NavigationManager Nav
+@inject IJSRuntime JS
+
+<PageTitle>ورود به پنل - YTDLHub</PageTitle>
+
+<div class="login-shell" dir="rtl">
+    <div class="login-card shadow-lg">
+        <div class="login-logo">
+            <i class="bi bi-robot text-white"></i>
+        </div>
+        
+        <h1 class="login-title">ورود به پنل مدیریت</h1>
+        <p class="login-sub">با استفاده از ربات تلگرام خود وارد شوید</p>
+
+        @if (Step == 1)
+        {
+            <div class="login-step active">
+                <EditForm Model="LoginModel" OnValidSubmit="SendCode">
+                    <div class="form-group">
+                        <label class="form-label">آیدی عددی تلگرام</label>
+                        <InputNumber @bind-Value="LoginModel.TelegramId" class="form-input text-center" placeholder="مثلاً 123456789" required />
+                        <div class="form-text text-muted mt-2" style="font-size: 11px;">آیدی عددی خود را می‌توانید از ربات‌های ID یاب دریافت کنید.</div>
+                    </div>
+                    
+                    @if (!string.IsNullOrEmpty(Error))
+                    {
+                        <div class="alert alert-error mb-3">@Error</div>
+                    }
+
+                    <button type="submit" class="btn btn-primary w-100 justify-content-center mt-2" disabled="@IsLoading">
+                        @if (IsLoading)
+                        {
+                            <span class="spinner me-2"></span>
+                            <span>در حال ارسال...</span>
+                        }
+                        else
+                        {
+                            <span>دریافت کد تایید</span>
+                            <i class="bi bi-arrow-left ms-2"></i>
+                        }
+                    </button>
+                </EditForm>
+            </div>
+        }
+        else if (Step == 2)
+        {
+            <div class="login-step active">
+                <EditForm Model="VerifyModel" OnValidSubmit="VerifyCode">
+                    <div class="form-group text-center">
+                        <label class="form-label mb-3">کد ارسال شده به تلگرام را وارد کنید</label>
+                        <InputText @bind-Value="VerifyModel.Code" class="form-input otp-input" maxlength="6" required autocomplete="off" />
+                    </div>
+                    
+                    @if (!string.IsNullOrEmpty(Error))
+                    {
+                        <div class="alert alert-error mb-3">@Error</div>
+                    }
+
+                    <button type="submit" class="btn btn-primary w-100 justify-content-center mt-2" disabled="@IsLoading">
+                        @if (IsLoading)
+                        {
+                            <span class="spinner me-2"></span>
+                            <span>در حال بررسی...</span>
+                        }
+                        else
+                        {
+                            <span>ورود به پنل</span>
+                            <i class="bi bi-box-arrow-in-left ms-2"></i>
+                        }
+                    </button>
+                    
+                    <button type="button" class="btn btn-ghost w-100 justify-content-center mt-2" @onclick="() => { Step = 1; Error = string.Empty; }">
+                        اصلاح آیدی
+                    </button>
+                </EditForm>
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    private int Step = 1;
+    private bool IsLoading = false;
+    private string Error = string.Empty;
+
+    private LoginForm LoginModel = new();
+    private VerifyForm VerifyModel = new();
+
+    private async Task SendCode()
+    {
+        if (LoginModel.TelegramId <= 0)
+        {
+            Error = "لطفاً آیدی معتبر وارد کنید.";
+            return;
+        }
+
+        IsLoading = true;
+        Error = string.Empty;
+        StateHasChanged();
+
+        var sent = await AuthService.SendOtpAsync(LoginModel.TelegramId);
+        
+        IsLoading = false;
+        
+        if (sent)
+        {
+            Step = 2;
+        }
+        else
+        {
+            Error = "خطا در ارسال کد. آیا ربات را Start کرده‌اید؟";
+        }
+    }
+
+    private async Task VerifyCode()
+    {
+        if (string.IsNullOrWhiteSpace(VerifyModel.Code) || VerifyModel.Code.Length != 6)
+        {
+            Error = "کد باید ۶ رقم باشد.";
+            return;
+        }
+
+        IsLoading = true;
+        Error = string.Empty;
+        StateHasChanged();
+
+        var verifiedId = await AuthService.VerifyOtpAsync(LoginModel.TelegramId, VerifyModel.Code);
+        
+        IsLoading = false;
+
+        if (verifiedId.HasValue)
+        {
+            // Login successful, redirect to auth controller to set cookie
+            Nav.NavigateTo($"/auth/login?id={verifiedId.Value}", forceLoad: true);
+        }
+        else
+        {
+            Error = "کد نامعتبر است یا منقضی شده.";
+        }
+    }
+
+    public class LoginForm
+    {
+        public long TelegramId { get; set; }
+    }
+
+    public class VerifyForm
+    {
+        public string Code { get; set; } = string.Empty;
+    }
+}

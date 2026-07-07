@@ -55,3 +55,4 @@ secrets.json
 ## Local downloads directory
 src/YTDLHub.Bot/downloads/
 downloads/
+data/

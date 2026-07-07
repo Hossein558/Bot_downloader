@@ -1,49 +1,80 @@
 @page "/downloads"
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
 @using YTDLHub.Core.Interfaces
 @using YTDLHub.Core.Enums
 @using YTDLHub.Core.Models
+@using YTDLHub.Infrastructure.Data
 @inject IDownloadService DownloadService
+@inject AppDbContext DbContext
+@inject AuthenticationStateProvider AuthStateProvider
+@inject NavigationManager Nav
+@attribute [Authorize]
 
-<PageTitle>YTDL Hub - New Download</PageTitle>
+<PageTitle>دانلود جدید - YTDLHub</PageTitle>
 
-<h1 class="h3 fw-bold mb-4"><i class="bi bi-cloud-arrow-down text-success me-2"></i>New Download</h1>
+<div class="mb-4">
+    <h2 class="h4 mb-1">دانلود جدید</h2>
+    <p class="text-muted" style="font-size: 13px;">لینک ویدیو یا پست خود را وارد کنید.</p>
+</div>
 
 <div class="row">
     <div class="col-md-8 col-lg-6">
-        <div class="card bg-dark border-secondary shadow-sm">
-            <div class="card-body">
+        <div class="card shadow-lg" style="background-color: var(--surface); border: 1px solid var(--border); border-radius: 16px; overflow: hidden;">
+            <div class="card-body p-4">
                 <EditForm Model="@Model" OnValidSubmit="HandleSubmit">
                     <DataAnnotationsValidator />
                     
-                    <div class="mb-3">
-                        <label class="form-label text-light">Video/Post URL</label>
-                        <SfTextBox @bind-Value="Model.Url" Placeholder="https://www.youtube.com/watch?v=..." CssClass="e-dark"></SfTextBox>
-                        <ValidationMessage For="@(() => Model.Url)" class="text-danger" />
+                    <div class="form-group mb-4">
+                        <label class="form-label">لینک محتوا (یوتیوب یا اینستاگرام)</label>
+                        <div class="input-icon-wrapper">
+                            <i class="bi bi-link-45deg input-icon text-muted"></i>
+                            <InputText @bind-Value="Model.Url" @oninput="OnUrlInput" class="form-input" style="padding-right: 40px;" placeholder="https://..." dir="ltr" />
+                        </div>
+                        <ValidationMessage For="@(() => Model.Url)" class="text-danger mt-1" style="font-size: 12px;" />
                     </div>
 
-                    <div class="mb-4">
-                        <label class="form-label text-light">Quality Preset</label>
-                        <SfDropDownList TValue="VideoQuality" TItem="QualityOption" DataSource="@Qualities" @bind-Value="Model.Quality" CssClass="e-dark">
-                            <DropDownListFieldSettings Text="Name" Value="Value"></DropDownListFieldSettings>
-                        </SfDropDownList>
+                    @if (IsYoutube)
+                    {
+                        <div class="form-group mb-4">
+                            <label class="form-label">کیفیت (فقط برای یوتیوب)</label>
+                            <InputSelect @bind-Value="Model.Quality" class="form-input" dir="ltr">
+                                @foreach (var q in Qualities)
+                                {
+                                    <option value="@q.Value">@q.Name</option>
+                                }
+                            </InputSelect>
+                        </div>
+                    }
+
+                    <div class="form-group mb-4">
+                        <label class="form-label">ذخیره در پوشه (اختیاری)</label>
+                        <InputSelect @bind-Value="Model.FolderId" class="form-input">
+                            <option value="">-- پوشه اصلی --</option>
+                            @foreach (var f in UserFolders)
+                            {
+                                <option value="@f.Id">@f.Name</option>
+                            }
+                        </InputSelect>
                     </div>
 
-                    <SfButton IsPrimary="true" CssClass="e-success w-100" Disabled="@IsSubmitting">
+                    <button type="submit" class="btn btn-primary w-100 justify-content-center" disabled="@IsSubmitting">
                         @if (IsSubmitting)
                         {
-                            <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
-                            <span>Processing...</span>
+                            <span class="spinner me-2"></span>
+                            <span>در حال پردازش...</span>
                         }
                         else
                         {
-                            <i class="bi bi-download me-2"></i> <span>Start Download</span>
+                            <i class="bi bi-cloud-arrow-down-fill me-2"></i>
+                            <span>شروع دانلود</span>
                         }
-                    </SfButton>
+                    </button>
                 </EditForm>
                 
                 @if (!string.IsNullOrEmpty(Message))
                 {
-                    <div class="alert alert-@MessageType mt-3 mb-0">
+                    <div class="alert alert-@MessageType mt-4 mb-0">
                         @Message
                     </div>
                 }
@@ -52,11 +83,26 @@
     </div>
 </div>
 
+<style>
+    .input-icon-wrapper { position: relative; }
+    .input-icon {
+        position: absolute;
+        right: 12px;
+        top: 50%;
+        transform: translateY(-50%);
+        font-size: 1.2rem;
+    }
+</style>
+
 @code {
     private DownloadFormModel Model = new();
     private bool IsSubmitting = false;
     private string Message = "";
     private string MessageType = "info";
+    private bool IsYoutube = false;
+    
+    private Guid UserId;
+    private List<UserFolder> UserFolders = new();
 
     private List<QualityOption> Qualities = new List<QualityOption>
     {
@@ -69,6 +115,26 @@
         new QualityOption { Name = "Audio Only (M4A)", Value = VideoQuality.AudioM4A }
     };
 
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        if (authState.User.Identity?.IsAuthenticated == true)
+        {
+            var userIdStr = authState.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            if (Guid.TryParse(userIdStr, out UserId))
+            {
+                UserFolders = DbContext.Folders.Where(f => f.UserId == UserId).ToList();
+            }
+        }
+    }
+
+    private void OnUrlInput(Microsoft.AspNetCore.Components.ChangeEventArgs e)
+    {
+        var url = e.Value?.ToString() ?? "";
+        IsYoutube = url.Contains("youtube.com", StringComparison.OrdinalIgnoreCase) || 
+                    url.Contains("youtu.be", StringComparison.OrdinalIgnoreCase);
+    }
+
     private async Task HandleSubmit()
     {
         IsSubmitting = true;
@@ -77,15 +143,22 @@
 
         try
         {
-            await DownloadService.StartDownloadAsync(Model.Url, Model.Quality);
-            Message = "Download queued successfully! Check the Dashboard for progress.";
+            await DownloadService.StartDownloadAsync(
+                Model.Url, 
+                IsYoutube ? Model.Quality : VideoQuality.Best, 
+                null, 
+                UserId, 
+                Model.FolderId == Guid.Empty ? null : Model.FolderId);
+                
+            Message = "دانلود با موفقیت در صف قرار گرفت! به داشبورد یا تاریخچه مراجعه کنید.";
             MessageType = "success";
             Model.Url = ""; // Reset form
+            IsYoutube = false;
         }
         catch (Exception ex)
         {
-            Message = $"Error: {ex.Message}";
-            MessageType = "danger";
+            Message = $"خطا: {ex.Message}";
+            MessageType = "error";
         }
         finally
         {
@@ -96,11 +169,13 @@
 
     public class DownloadFormModel
     {
-        [System.ComponentModel.DataAnnotations.Required(ErrorMessage = "URL is required")]
-        [System.ComponentModel.DataAnnotations.Url(ErrorMessage = "Please enter a valid URL")]
+        [System.ComponentModel.DataAnnotations.Required(ErrorMessage = "لینک الزامی است.")]
+        [System.ComponentModel.DataAnnotations.Url(ErrorMessage = "لینک معتبر نیست.")]
         public string Url { get; set; } = "";
         
         public VideoQuality Quality { get; set; } = VideoQuality.Best;
+        
+        public Guid? FolderId { get; set; }
     }
 
     public class QualityOption

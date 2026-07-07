@@ -1,66 +1,106 @@
 @inherits LayoutComponentBase
-@using Syncfusion.Blazor.Navigations
+@inject NavigationManager Nav
+@inject IJSRuntime JS
 
-<div id="wrapper">
-    <!-- Header / AppBar -->
-    <header class="header">
-        <nav class="navbar navbar-dark bg-dark px-3 shadow-sm" style="height: 60px;">
-            <div class="d-flex align-items-center">
-                <button class="btn btn-outline-light me-3 border-0" @onclick="ToggleSidebar">
-                    <span class="navbar-toggler-icon"></span>
-                </button>
-                <span class="navbar-brand mb-0 h1 fw-bold text-white">YTDL Hub</span>
-            </div>
-            <div class="d-flex align-items-center">
-                <span class="text-white-50 small me-3">Syncfusion Powered</span>
+<div class="shell">
+    <!-- Sidebar -->
+    <aside class="sidebar @(SidebarOpen ? "" : "collapsed")">
+        <div class="sidebar-brand">
+            <div class="sidebar-brand-logo">▼</div>
+            <span class="sidebar-brand-name">YTDLHub</span>
+        </div>
+
+        <nav class="sidebar-nav">
+            <div class="nav-section">
+                <div class="nav-section-label">منو اصلی</div>
+
+                <NavLink class="nav-item" href="" Match="NavLinkMatch.All">
+                    <svg class="nav-item-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/>
+                        <rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>
+                    </svg>
+                    داشبورد
+                </NavLink>
+
+                <NavLink class="nav-item" href="downloads">
+                    <svg class="nav-item-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M12 2v13m0 0l-4-4m4 4l4-4M2 17v2a2 2 0 002 2h16a2 2 0 002-2v-2"/>
+                    </svg>
+                    دانلود جدید
+                </NavLink>
+
+                <NavLink class="nav-item" href="folders">
+                    <svg class="nav-item-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z"/>
+                    </svg>
+                    پوشه‌ها
+                </NavLink>
+
+                <NavLink class="nav-item" href="history">
+                    <svg class="nav-item-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+                    </svg>
+                    تاریخچه
+                </NavLink>
             </div>
         </nav>
-    </header>
 
-    <!-- Sidebar & Main Content Wrapper -->
-    <div class="d-flex" style="height: calc(100vh - 60px);">
-        <SfSidebar Width="250px" Target=".main-content" MediaQuery="(min-width: 768px)" @bind-IsOpen="SidebarIsOpen" Type="SidebarType.Auto" class="bg-dark text-white border-end border-secondary shadow">
-            <ChildContent>
-                <div class="p-3">
-                    <ul class="nav flex-column">
-                        <li class="nav-item mb-2">
-                            <a class="nav-link text-white d-flex align-items-center" href="" Match="NavLinkMatch.All">
-                                <i class="bi bi-house-door me-2"></i> Dashboard
-                            </a>
-                        </li>
-                        <li class="nav-item mb-2">
-                            <a class="nav-link text-white-50 d-flex align-items-center" href="downloads">
-                                <i class="bi bi-cloud-arrow-down me-2"></i> Downloads
-                            </a>
-                        </li>
-                        <li class="nav-item mb-2">
-                            <a class="nav-link text-white-50 d-flex align-items-center" href="settings">
-                                <i class="bi bi-gear me-2"></i> Settings
-                            </a>
-                        </li>
-                    </ul>
+        <div class="sidebar-footer">
+            <div class="user-card" @onclick="Logout">
+                <div class="user-avatar">@GetInitials()</div>
+                <div class="user-info">
+                    <div class="user-name">@(UserName ?? "کاربر")</div>
+                    <div class="user-id">خروج از حساب</div>
                 </div>
-            </ChildContent>
-        </SfSidebar>
+            </div>
+        </div>
+    </aside>
 
-        <!-- Main Content -->
-        <main class="main-content flex-grow-1 overflow-auto bg-black text-light p-4">
-            @Body
-        </main>
+    <!-- Main Area -->
+    <div class="main-area">
+        <!-- Topbar -->
+        <header class="topbar">
+            <button class="topbar-toggle" @onclick="ToggleSidebar">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
+                </svg>
+            </button>
+            <div class="topbar-title">@PageTitle</div>
+            <div class="topbar-actions">
+                <span style="font-size:11px; color:var(--text-muted);">نسخه ۱.۰</span>
+            </div>
+        </header>
+
+        <!-- Page Content -->
+        <div class="content">
+            <CascadingValue Value="this">
+                @Body
+            </CascadingValue>
+        </div>
     </div>
 </div>
 
 <div id="blazor-error-ui" data-nosnippet>
-    An unhandled error has occurred.
-    <a href="." class="reload">Reload</a>
-    <span class="dismiss">🗙</span>
+    خطایی رخ داده است. <a href="." class="reload">بارگذاری مجدد</a>
+    <span class="dismiss">✕</span>
 </div>
 
 @code {
-    private bool SidebarIsOpen = true;
+    [CascadingParameter] public string? UserName { get; set; }
 
-    private void ToggleSidebar()
+    private bool SidebarOpen = true;
+    public string PageTitle = "داشبورد";
+
+    private void ToggleSidebar() => SidebarOpen = !SidebarOpen;
+
+    private string GetInitials()
     {
-        SidebarIsOpen = !SidebarIsOpen;
+        if (string.IsNullOrEmpty(UserName)) return "U";
+        return UserName.Length > 0 ? UserName[0].ToString().ToUpper() : "U";
+    }
+
+    private async Task Logout()
+    {
+        Nav.NavigateTo("/logout", forceLoad: true);
     }
 }
