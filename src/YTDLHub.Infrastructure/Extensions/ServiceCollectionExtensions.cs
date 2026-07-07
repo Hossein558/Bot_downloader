@@ -40,7 +40,10 @@ public static class ServiceCollectionExtensions
                         else
                         {
                             opts.ExecutablePath = "yt-dlp"; // Assumed globally installed on Linux
-                            opts.DownloadDirectory = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "downloads"));
+                            if (opts.DownloadDirectory == "downloads")
+                            {
+                                opts.DownloadDirectory = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "downloads"));
+                            }
                         }
                     }
                 });

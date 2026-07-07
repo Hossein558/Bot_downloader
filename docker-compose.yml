@@ -60,7 +60,9 @@ services:
       - YtDlp__CookiesFilePath=/app/cookies.txt
       - YtDlp__ProxyUrl=socks5://warp:9091
       - YtDlp__PotProviderUrl=http://bgutil-provider:4416
+      - Database__Path=/app/data/ytdlhub.db
     volumes:
+      - ./data:/app/data
       - ./downloads:/app/downloads
       - ./cookies.txt:/app/cookies.txt
 
