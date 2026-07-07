@@ -29,6 +29,7 @@ RUN apt-get update && apt-get install -y \
     && pip3 install --break-system-packages --no-cache-dir \
         "yt-dlp[default]" \
         "bgutil-ytdlp-pot-provider" \
+        "gallery-dl" \
     && apt-get remove -y curl unzip \
     && apt-get autoremove -y \
     && rm -rf /var/lib/apt/lists/*

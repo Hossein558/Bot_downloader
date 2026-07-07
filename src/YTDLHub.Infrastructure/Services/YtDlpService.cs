@@ -59,11 +59,31 @@ public sealed class YtDlpService : IDownloadService
     {
         _logger.LogInformation("Fetching info for URL: {Url}", url);
 
+        var platform = DetectPlatform(url);
+        if (platform == Platform.Instagram)
+        {
+            return await GetInstagramInfoAsync(url, ct);
+        }
+
         var args = BuildBaseArgs(url);
         args.AddRange(["--dump-json", "--no-playlist", "--no-warnings", url]);
 
-        var json = await RunProcessAsync(args, ct);
+        var json = await RunProcessAsync(_opts.ExecutablePath, args, ct);
         return ParseVideoInfo(url, json);
+    }
+
+    private async Task<VideoInfo> GetInstagramInfoAsync(string url, CancellationToken ct)
+    {
+        var args = new List<string>();
+        if (!string.IsNullOrWhiteSpace(_opts.CookiesFilePath) && File.Exists(_opts.CookiesFilePath))
+        {
+            args.Add("--cookies");
+            args.Add(_opts.CookiesFilePath);
+        }
+        args.AddRange(["-j", url]);
+
+        var json = await RunProcessAsync("gallery-dl", args, ct);
+        return ParseGalleryDlInfo(url, json);
     }
 
     public async Task<DownloadJob> StartDownloadAsync(
@@ -93,63 +113,71 @@ public sealed class YtDlpService : IDownloadService
             job.Status = JobStatus.Downloading;
             job.RaiseProgressChanged();
 
-            var outputTemplate = Path.Combine(_opts.DownloadDirectory, $"{job.Id}.%(ext)s");
+            var platform = DetectPlatform(job.Url);
+            string? outputFile = null;
 
-            var args = BuildBaseArgs(job.Url);
-
-            // Merge video+audio to mp4; for audio-only, convert to requested codec
-            if (job.Quality is VideoQuality.AudioMp3)
+            if (platform == Platform.Instagram)
             {
-                args.AddRange(["-x", "--audio-format", "mp3"]);
-            }
-            else if (job.Quality is VideoQuality.AudioM4A)
-            {
-                args.AddRange(["-x", "--audio-format", "m4a"]);
+                outputFile = await DownloadInstagramAsync(job, ct);
             }
             else
             {
+                var outputTemplate = Path.Combine(_opts.DownloadDirectory, $"{job.Id}.%(ext)s");
+                var args = BuildBaseArgs(job.Url);
+
+                // Merge video+audio to mp4; for audio-only, convert to requested codec
+                if (job.Quality is VideoQuality.AudioMp3)
+                {
+                    args.AddRange(["-x", "--audio-format", "mp3"]);
+                }
+                else if (job.Quality is VideoQuality.AudioM4A)
+                {
+                    args.AddRange(["-x", "--audio-format", "m4a"]);
+                }
+                else
+                {
+                    args.AddRange([
+                        "-f", job.Quality.ToFormatSelector(),
+                        "--merge-output-format", "mp4"
+                    ]);
+                }
+
                 args.AddRange([
-                    "-f", job.Quality.ToFormatSelector(),
-                    "--merge-output-format", "mp4"
+                    "--newline",             // one progress line per line (easier to parse)
+                    "--progress",
+                    "-o", outputTemplate,
+                    "--no-playlist",
+                    job.Url
                 ]);
+
+                _logger.LogInformation("Starting download job {JobId} | quality={Quality}", job.Id, job.Quality);
+
+                using var process = CreateProcess(_opts.ExecutablePath, args);
+                process.OutputDataReceived += (_, e) => HandleProgressLine(job, e.Data);
+                process.ErrorDataReceived  += (_, e) =>
+                {
+                    if (!string.IsNullOrWhiteSpace(e.Data))
+                        _logger.LogWarning("[yt-dlp stderr] {Line}", e.Data);
+                };
+
+                process.Start();
+                process.BeginOutputReadLine();
+                process.BeginErrorReadLine();
+
+                await process.WaitForExitAsync(ct);
+
+                if (process.ExitCode != 0)
+                {
+                    job.Status       = JobStatus.Failed;
+                    job.ErrorMessage = "yt-dlp خطا برگرداند. لطفاً لینک را بررسی کنید.";
+                    job.RaiseProgressChanged();
+                    return;
+                }
+
+                outputFile = Directory
+                    .EnumerateFiles(_opts.DownloadDirectory, $"{job.Id}.*")
+                    .FirstOrDefault();
             }
-
-            args.AddRange([
-                "--newline",             // one progress line per line (easier to parse)
-                "--progress",
-                "-o", outputTemplate,
-                "--no-playlist",
-                job.Url
-            ]);
-
-            _logger.LogInformation("Starting download job {JobId} | quality={Quality}", job.Id, job.Quality);
-
-            using var process = CreateProcess(args);
-            process.OutputDataReceived += (_, e) => HandleProgressLine(job, e.Data);
-            process.ErrorDataReceived  += (_, e) =>
-            {
-                if (!string.IsNullOrWhiteSpace(e.Data))
-                    _logger.LogWarning("[yt-dlp stderr] {Line}", e.Data);
-            };
-
-            process.Start();
-            process.BeginOutputReadLine();
-            process.BeginErrorReadLine();
-
-            await process.WaitForExitAsync(ct);
-
-            if (process.ExitCode != 0)
-            {
-                job.Status       = JobStatus.Failed;
-                job.ErrorMessage = "yt-dlp خطا برگرداند. لطفاً لینک را بررسی کنید.";
-                job.RaiseProgressChanged();
-                return;
-            }
-
-            // Locate the output file (extension may differ)
-            var outputFile = Directory
-                .EnumerateFiles(_opts.DownloadDirectory, $"{job.Id}.*")
-                .FirstOrDefault();
 
             if (outputFile is null)
             {
@@ -266,9 +294,9 @@ public sealed class YtDlpService : IDownloadService
         };
     }
 
-    private async Task<string> RunProcessAsync(List<string> args, CancellationToken ct)
+    private async Task<string> RunProcessAsync(string executable, List<string> args, CancellationToken ct)
     {
-        using var process = CreateProcess(args);
+        using var process = CreateProcess(executable, args);
         var sb     = new StringBuilder();
         var errSb  = new StringBuilder();
 
@@ -284,7 +312,7 @@ public sealed class YtDlpService : IDownloadService
         if (process.ExitCode != 0)
         {
             var msg = errSb.ToString().Trim();
-            _logger.LogError("yt-dlp failed (exit {Code}): {Err}", process.ExitCode, msg);
+            _logger.LogError("{Exe} failed (exit {Code}): {Err}", executable, process.ExitCode, msg);
             throw new InvalidOperationException(
                 "نتوانستیم اطلاعات ویدیو را دریافت کنیم. لطفاً لینک را بررسی کنید.");
         }
@@ -292,12 +320,11 @@ public sealed class YtDlpService : IDownloadService
         return sb.ToString().Trim();
     }
 
-    private Process CreateProcess(List<string> args)
+    private Process CreateProcess(string executable, List<string> args)
     {
-        // Join args safely – yt-dlp accepts individual args; we pass them via ArgumentList
         var psi = new ProcessStartInfo
         {
-            FileName               = _opts.ExecutablePath,
+            FileName               = executable,
             RedirectStandardOutput = true,
             RedirectStandardError  = true,
             UseShellExecute        = false,
@@ -308,6 +335,100 @@ public sealed class YtDlpService : IDownloadService
             psi.ArgumentList.Add(arg);
 
         return new Process { StartInfo = psi, EnableRaisingEvents = true };
+    }
+
+    private async Task<string?> DownloadInstagramAsync(DownloadJob job, CancellationToken ct)
+    {
+        var args = new List<string>();
+        if (!string.IsNullOrWhiteSpace(_opts.CookiesFilePath) && File.Exists(_opts.CookiesFilePath))
+        {
+            args.Add("--cookies");
+            args.Add(_opts.CookiesFilePath);
+        }
+
+        args.AddRange([
+            "-D", _opts.DownloadDirectory,
+            "-o", $"filename={job.Id}.{{extension}}",
+            job.Url
+        ]);
+
+        _logger.LogInformation("Starting Instagram download via gallery-dl for job {JobId}", job.Id);
+
+        job.Progress = 50;
+        job.RaiseProgressChanged();
+
+        using var process = CreateProcess("gallery-dl", args);
+        process.Start();
+        await process.WaitForExitAsync(ct);
+
+        if (process.ExitCode != 0)
+        {
+            return null;
+        }
+
+        return Directory
+            .EnumerateFiles(_opts.DownloadDirectory, $"{job.Id}.*")
+            .FirstOrDefault();
+    }
+
+    private VideoInfo ParseGalleryDlInfo(string originalUrl, string json)
+    {
+        using var doc = JsonDocument.Parse(json);
+        var root = doc.RootElement;
+        
+        if (root.ValueKind != JsonValueKind.Array)
+            throw new InvalidOperationException("فرمت اطلاعات دریافت شده نامعتبر است.");
+
+        string id = "";
+        string username = "";
+        string fullname = "";
+        string type = "post";
+
+        foreach (var item in root.EnumerateArray())
+        {
+            if (item.ValueKind != JsonValueKind.Array || item.GetArrayLength() < 2)
+                continue;
+
+            var code = item[0].GetInt32();
+            if (code == 2)
+            {
+                var dict = item[1];
+                if (dict.TryGetProperty("user", out var userEl))
+                {
+                    if (userEl.TryGetProperty("username", out var u)) username = u.GetString() ?? "";
+                }
+                else if (dict.TryGetProperty("username", out var u))
+                {
+                    username = u.GetString() ?? "";
+                }
+                
+                if (dict.TryGetProperty("fullname", out var f)) fullname = f.GetString() ?? "";
+            }
+            else if (code == 3)
+            {
+                var dict = item[2];
+                if (dict.TryGetProperty("media_id", out var mid)) id = mid.GetString() ?? "";
+                if (dict.TryGetProperty("type", out var t)) type = t.GetString() ?? "";
+            }
+        }
+
+        if (string.IsNullOrEmpty(id))
+            id = Guid.NewGuid().ToString("N");
+
+        var uploader = !string.IsNullOrEmpty(fullname) ? $"{fullname} (@{username})" : $"@{username}";
+        var title = $"{type.ToUpper()} from {uploader}";
+
+        return new VideoInfo
+        {
+            Id = id,
+            Title = title,
+            ThumbnailUrl = null,
+            Duration = TimeSpan.Zero,
+            Uploader = uploader,
+            OriginalUrl = originalUrl,
+            Platform = Platform.Instagram,
+            AvailableQualities = new List<VideoQuality> { VideoQuality.Best }
+        };
     }
 
     private List<string> BuildBaseArgs(string url)
