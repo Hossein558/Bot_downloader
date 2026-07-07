@@ -14,6 +14,11 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Content Remove="appsettings.json" />
+    <None Include="appsettings.json" CopyToOutputDirectory="Never" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\YTDLHub.Core\YTDLHub.Core.csproj" />
     <ProjectReference Include="..\YTDLHub.Infrastructure\YTDLHub.Infrastructure.csproj" />
   </ItemGroup>
