@@ -78,9 +78,10 @@ public sealed class CallbackHandler
             $"⏳ در حال دانلود: {quality.ToDisplayName()}\n▱▱▱▱▱▱▱▱▱▱ 0%",
             cancellationToken: ct);
 
+        DownloadJob? job = null;
         try
         {
-            var job = await _downloader.StartDownloadAsync(state.Url, quality, ct);
+            job = await _downloader.StartDownloadAsync(state.Url, quality, ct);
 
             // Keep editing progress message until done
             await TrackProgressAsync(bot, chatId, progressMsg.MessageId, job, ct);
@@ -120,6 +121,13 @@ public sealed class CallbackHandler
                 progressMsg.MessageId,
                 "❌ خطایی رخ داد. لطفاً دوباره تلاش کنید.",
                 cancellationToken: ct);
+        }
+        finally
+        {
+            if (job?.FilePath is not null && File.Exists(job.FilePath))
+            {
+                try { File.Delete(job.FilePath); } catch { /* ignore */ }
+            }
         }
     }
 
