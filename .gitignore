@@ -56,3 +56,5 @@ secrets.json
 src/YTDLHub.Bot/downloads/
 downloads/
 data/
+deploy/
+deploy.zip
