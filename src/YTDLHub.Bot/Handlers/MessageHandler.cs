@@ -60,48 +60,111 @@ public sealed class MessageHandler
             return;
         }
 
-        // Show "fetching…" message while we call yt-dlp
+        // Show general "fetching…" message
         var fetchingMsg = await bot.SendMessage(
             message.Chat.Id,
-            $"🔍 در حال دریافت اطلاعات ویدیو...",
+            $"🔍 در حال دریافت اطلاعات...",
             cancellationToken: ct);
 
         try
         {
-            var info = await _downloader.GetVideoInfoAsync(url, ct);
-            _userState.SetPendingUrl(message.Chat.Id, url, info);
+            if (platform == Platform.Instagram)
+            {
+                // Update fetching message to show direct download status
+                await bot.EditMessageText(
+                    message.Chat.Id,
+                    fetchingMsg.MessageId,
+                    "⏳ در حال دانلود تصویر/ویدیو از اینستاگرام...",
+                    cancellationToken: ct);
 
-            // Build inline keyboard – one button per available quality
-            var rows = info.AvailableQualities
-                .Select(q => new[]
+                DownloadJob? job = null;
+                try
                 {
-                    InlineKeyboardButton.WithCallbackData(
-                        text:         q.ToDisplayName(),
-                        callbackData: $"dl:{q}")
-                })
-                .ToArray();
+                    // Fetch info first to get correct metadata (title, etc.)
+                    var info = await _downloader.GetVideoInfoAsync(url, ct);
+
+                    job = await _downloader.StartDownloadAsync(url, VideoQuality.Best, null, ct);
+                    job.VideoTitle = info.Title;
+
+                    // Track progress using CallbackHandler helper
+                    await CallbackHandler.TrackProgressAsync(bot, message.Chat.Id, fetchingMsg.MessageId, job, ct);
+
+                    if (job.Status == JobStatus.Failed)
+                    {
+                        await bot.EditMessageText(
+                            message.Chat.Id,
+                            fetchingMsg.MessageId,
+                            $"❌ دانلود ناموفق بود.\n{job.ErrorMessage}",
+                            cancellationToken: ct);
+                        return;
+                    }
+
+                    // Delete progress message and send the actual file
+                    await bot.DeleteMessage(message.Chat.Id, fetchingMsg.MessageId, ct);
+                    await CallbackHandler.SendFileAsync(bot, message.Chat.Id, job, ct);
+                }
+                finally
+                {
+                    if (job?.FilePath is not null && File.Exists(job.FilePath))
+                    {
+                        try { File.Delete(job.FilePath); } catch { /* ignore */ }
+                    }
+                }
+                return;
+            }
+
+            // Platform is YouTube
+            var infoCard = await _downloader.GetVideoInfoAsync(url, ct);
+            _userState.SetPendingUrl(message.Chat.Id, url, infoCard);
+
+            // Build inline keyboard – custom dynamic formats for YouTube
+            var rows = new List<InlineKeyboardButton[]>();
+            if (infoCard.YoutubeFormats.Any())
+            {
+                foreach (var fmt in infoCard.YoutubeFormats)
+                {
+                    rows.Add(new[]
+                    {
+                        InlineKeyboardButton.WithCallbackData(
+                            text:         fmt.DisplayName,
+                            callbackData: $"dl:yt:{fmt.FormatId}")
+                    });
+                }
+            }
+            else
+            {
+                // Fallback quality presets
+                foreach (var q in infoCard.AvailableQualities)
+                {
+                    rows.Add(new[]
+                    {
+                        InlineKeyboardButton.WithCallbackData(
+                            text:         q.ToDisplayName(),
+                            callbackData: $"dl:{q}")
+                    });
+                }
+            }
 
             var keyboard = new InlineKeyboardMarkup(rows);
 
-            var duration = info.Duration > TimeSpan.Zero
-                ? $"{(int)info.Duration.TotalMinutes}:{info.Duration.Seconds:D2}"
+            var duration = infoCard.Duration > TimeSpan.Zero
+                ? $"{(int)infoCard.Duration.TotalMinutes}:{infoCard.Duration.Seconds:D2}"
                 : "نامشخص";
 
-            var platformIcon = platform == Platform.YouTube ? "▶️" : "📸";
             var caption =
-                $"{platformIcon} *{EscapeMd(info.Title)}*\n" +
-                $"👤 {EscapeMd(info.Uploader)}\n" +
+                $"▶️ *{EscapeMd(infoCard.Title)}*\n" +
+                $"👤 {EscapeMd(infoCard.Uploader)}\n" +
                 $"⏱️ مدت: {duration}\n\n" +
                 $"⬇️ کیفیت مورد نظر را انتخاب کنید:";
 
             // Delete "fetching" placeholder and send the real card
             await bot.DeleteMessage(message.Chat.Id, fetchingMsg.MessageId, ct);
 
-            if (!string.IsNullOrWhiteSpace(info.ThumbnailUrl))
+            if (!string.IsNullOrWhiteSpace(infoCard.ThumbnailUrl))
             {
                 await bot.SendPhoto(
                     chatId:            message.Chat.Id,
-                    photo:             new InputFileUrl(info.ThumbnailUrl),
+                    photo:             new InputFileUrl(infoCard.ThumbnailUrl),
                     caption:           caption,
                     parseMode:         ParseMode.MarkdownV2,
                     replyMarkup:       keyboard,
@@ -119,14 +182,12 @@ public sealed class MessageHandler
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to fetch info for {Url}", url);
+            _logger.LogError(ex, "Failed to process message for {Url}", url);
 
             await bot.EditMessageText(
                 message.Chat.Id,
                 fetchingMsg.MessageId,
-                "❌ نتوانستیم اطلاعات ویدیو را دریافت کنیم.\n" +
-                "• لینک را بررسی کنید\n" +
-                "• محتوا ممکن است پرایوت باشد",
+                "❌ خطایی رخ داد. لطفا لینک را بررسی کرده و مجدداً تلاش کنید.",
                 cancellationToken: ct);
         }
     }

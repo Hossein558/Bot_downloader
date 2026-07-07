@@ -42,12 +42,22 @@ public sealed class CallbackHandler
         // Answer the callback to remove the "loading" spinner on the button
         await bot.AnswerCallbackQuery(callback.Id, cancellationToken: ct);
 
-        // Parse callback data: "dl:{VideoQuality}"
-        if (!data.StartsWith("dl:") ||
-            !Enum.TryParse<VideoQuality>(data["dl:".Length..], out var quality))
+        string formatId = "";
+        VideoQuality quality = VideoQuality.Best;
+
+        if (data.StartsWith("dl:yt:"))
         {
-            await bot.SendMessage(chatId, "⚠️ درخواست نامعتبر است.", cancellationToken: ct);
-            return;
+            formatId = data["dl:yt:".Length..];
+        }
+        else
+        {
+            // Parse callback data: "dl:{VideoQuality}"
+            if (!data.StartsWith("dl:") ||
+                !Enum.TryParse<VideoQuality>(data["dl:".Length..], out quality))
+            {
+                await bot.SendMessage(chatId, "⚠️ درخواست نامعتبر است.", cancellationToken: ct);
+                return;
+            }
         }
 
         // Retrieve the URL we stored when the user sent the link
@@ -82,7 +92,8 @@ public sealed class CallbackHandler
         DownloadJob? job = null;
         try
         {
-            job = await _downloader.StartDownloadAsync(state.Url, quality, ct);
+            job = await _downloader.StartDownloadAsync(state.Url, quality, formatId, ct);
+            job.VideoTitle = state.Info.Title;
 
             // Keep editing progress message until done
             await TrackProgressAsync(bot, chatId, progressMsg.MessageId, job, ct);
@@ -137,7 +148,7 @@ public sealed class CallbackHandler
 
     // ── Helpers ──────────────────────────────────────────────────────────────
 
-    private static async Task TrackProgressAsync(
+    internal static async Task TrackProgressAsync(
         ITelegramBotClient bot,
         long chatId,
         int messageId,
@@ -223,7 +234,7 @@ public sealed class CallbackHandler
         return new string('▰', filled) + new string('▱', barLen - filled);
     }
 
-    private static async Task SendFileAsync(
+    internal static async Task SendFileAsync(
         ITelegramBotClient bot,
         long chatId,
         DownloadJob job,

@@ -89,9 +89,10 @@ public sealed class YtDlpService : IDownloadService
     public async Task<DownloadJob> StartDownloadAsync(
         string url,
         VideoQuality quality,
+        string? formatId = null,
         CancellationToken ct = default)
     {
-        var job = new DownloadJob { Url = url, Quality = quality };
+        var job = new DownloadJob { Url = url, Quality = quality, FormatId = formatId };
         _jobs[job.Id] = job;
 
         // Fire-and-forget on a thread-pool thread so the caller is not blocked
@@ -126,7 +127,14 @@ public sealed class YtDlpService : IDownloadService
                 var args = BuildBaseArgs(job.Url);
 
                 // Merge video+audio to mp4; for audio-only, convert to requested codec
-                if (job.Quality is VideoQuality.AudioMp3)
+                if (!string.IsNullOrEmpty(job.FormatId))
+                {
+                    args.AddRange([
+                        "-f", job.FormatId,
+                        "--merge-output-format", "mp4"
+                    ]);
+                }
+                else if (job.Quality is VideoQuality.AudioMp3)
                 {
                     args.AddRange(["-x", "--audio-format", "mp3"]);
                 }
@@ -257,13 +265,112 @@ public sealed class YtDlpService : IDownloadService
         // Determine which quality presets are actually available
         var availableQualities = new List<VideoQuality>();
         var maxHeight = 0;
+        var youtubeFormats = new List<YoutubeFormatInfo>();
 
-        if (root.TryGetProperty("formats", out var formatsEl))
+        if (root.TryGetProperty("formats", out var formatsEl) && formatsEl.ValueKind == JsonValueKind.Array)
         {
             foreach (var fmt in formatsEl.EnumerateArray())
             {
                 if (fmt.TryGetProperty("height", out var h) && h.ValueKind == JsonValueKind.Number)
                     maxHeight = Math.Max(maxHeight, h.GetInt32());
+            }
+
+            var platform = DetectPlatform(originalUrl);
+            if (platform == Platform.YouTube)
+            {
+                // Find best audio formats for merging
+                string bestM4aAudioId = "140";
+                string bestWebmAudioId = "251";
+                long maxM4aAudioSize = 0;
+                long maxWebmAudioSize = 0;
+
+                foreach (var fmt in formatsEl.EnumerateArray())
+                {
+                    var vcodec = fmt.TryGetProperty("vcodec", out var vc) ? vc.GetString() : null;
+                    var acodec = fmt.TryGetProperty("acodec", out var ac) ? ac.GetString() : null;
+                    var ext = fmt.TryGetProperty("ext", out var e) ? e.GetString() : null;
+                    var fid = fmt.TryGetProperty("format_id", out var f) ? f.GetString() : null;
+
+                    if (vcodec == "none" && acodec != "none" && !string.IsNullOrEmpty(fid))
+                    {
+                        long size = fmt.TryGetProperty("filesize", out var s) && s.ValueKind == JsonValueKind.Number ? s.GetInt64() : 0;
+                        if (size == 0 && fmt.TryGetProperty("filesize_approx", out var sa) && sa.ValueKind == JsonValueKind.Number)
+                            size = sa.GetInt64();
+
+                        if (ext == "m4a" && size >= maxM4aAudioSize)
+                        {
+                            maxM4aAudioSize = size;
+                            bestM4aAudioId = fid;
+                        }
+                        else if (ext == "webm" && size >= maxWebmAudioSize)
+                        {
+                            maxWebmAudioSize = size;
+                            bestWebmAudioId = fid;
+                        }
+                    }
+                }
+
+                // Process video formats
+                var uniqueFormats = new Dictionary<string, YoutubeFormatInfo>();
+
+                foreach (var fmt in formatsEl.EnumerateArray())
+                {
+                    var vcodec = fmt.TryGetProperty("vcodec", out var vc) ? vc.GetString() : null;
+                    var acodec = fmt.TryGetProperty("acodec", out var ac) ? ac.GetString() : null;
+                    var ext = fmt.TryGetProperty("ext", out var e) ? e.GetString() : null;
+                    var fid = fmt.TryGetProperty("format_id", out var f) ? f.GetString() : null;
+
+                    if (vcodec != "none" && vcodec != null && !string.IsNullOrEmpty(fid))
+                    {
+                        int height = fmt.TryGetProperty("height", out var h) && h.ValueKind == JsonValueKind.Number ? h.GetInt32() : 0;
+                        if (height < 360) continue; // skip very low resolutions
+
+                        long size = fmt.TryGetProperty("filesize", out var s) && s.ValueKind == JsonValueKind.Number ? s.GetInt64() : 0;
+                        if (size == 0 && fmt.TryGetProperty("filesize_approx", out var sa) && sa.ValueKind == JsonValueKind.Number)
+                            size = sa.GetInt64();
+
+                        string codecName = "unknown";
+                        if (vcodec.Contains("avc1") || vcodec.Contains("h264")) codecName = "h264";
+                        else if (vcodec.Contains("vp09") || vcodec.Contains("vp9")) codecName = "vp9";
+                        else if (vcodec.Contains("av01") || vcodec.Contains("av1")) codecName = "av1";
+
+                        string container = ext ?? "mp4";
+                        string formatKey = $"{height}_{container}";
+
+                        string finalFormatId = fid;
+                        long finalSize = size;
+
+                        if (acodec == "none")
+                        {
+                            if (container == "webm")
+                            {
+                                finalFormatId = $"{fid}+{bestWebmAudioId}";
+                                finalSize += maxWebmAudioSize;
+                            }
+                            else
+                            {
+                                finalFormatId = $"{fid}+{bestM4aAudioId}";
+                                finalSize += maxM4aAudioSize;
+                            }
+                        }
+
+                        var formatInfo = new YoutubeFormatInfo
+                        {
+                            FormatId = finalFormatId,
+                            Resolution = $"{height}p",
+                            Container = container.ToUpper(),
+                            Codec = codecName,
+                            FileSizeBytes = finalSize > 0 ? finalSize : null
+                        };
+
+                        uniqueFormats[formatKey] = formatInfo;
+                    }
+                }
+
+                // Add standard Audio presets too
+                youtubeFormats.AddRange(uniqueFormats.Values.OrderByDescending(f => int.Parse(f.Resolution.Replace("p", ""))));
+                youtubeFormats.Add(new YoutubeFormatInfo { FormatId = bestM4aAudioId, Resolution = "Audio", Container = "M4A", Codec = "aac", FileSizeBytes = maxM4aAudioSize > 0 ? maxM4aAudioSize : null });
+                youtubeFormats.Add(new YoutubeFormatInfo { FormatId = "mp3", Resolution = "Audio", Container = "MP3", Codec = "mp3", FileSizeBytes = maxM4aAudioSize > 0 ? maxM4aAudioSize : null }); // approximate size
             }
         }
 
@@ -290,7 +397,8 @@ public sealed class YtDlpService : IDownloadService
             Uploader           = root.TryGetProperty("uploader", out var up) ? up.GetString() ?? "" : "",
             OriginalUrl        = originalUrl,
             Platform           = DetectPlatform(originalUrl),
-            AvailableQualities = availableQualities
+            AvailableQualities = availableQualities,
+            YoutubeFormats     = youtubeFormats
         };
     }
 

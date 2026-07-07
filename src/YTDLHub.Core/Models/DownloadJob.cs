@@ -7,6 +7,7 @@ public sealed class DownloadJob
     public Guid Id { get; init; } = Guid.NewGuid();
     public string Url { get; init; } = string.Empty;
     public VideoQuality Quality { get; init; }
+    public string? FormatId { get; set; }
     public string? VideoTitle { get; set; }
     public JobStatus Status { get; set; } = JobStatus.Queued;
     public int Progress { get; set; }           // 0–100

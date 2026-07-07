@@ -18,6 +18,7 @@ public interface IDownloadService
     Task<DownloadJob> StartDownloadAsync(
         string url,
         VideoQuality quality,
+        string? formatId = null,
         CancellationToken ct = default);
 
     /// <summary>
