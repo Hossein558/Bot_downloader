@@ -87,15 +87,36 @@ public sealed class YtDlpService : IDownloadService
         return ParseVideoInfo(url, json);
     }
 
+    private string? GetSafeCookiesFilePath()
+    {
+        if (string.IsNullOrWhiteSpace(_opts.CookiesFilePath) || !File.Exists(_opts.CookiesFilePath))
+            return null;
+
+        // Copy cookies.txt to a temp location to avoid "Device or resource busy" when gallery-dl tries to update it
+        try
+        {
+            var tempPath = Path.Combine(Path.GetTempPath(), "ytdlhub_cookies.txt");
+            File.Copy(_opts.CookiesFilePath, tempPath, overwrite: true);
+            return tempPath;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to copy cookies to temp path. Falling back to original path.");
+            return _opts.CookiesFilePath;
+        }
+    }
+
     private async Task<VideoInfo> GetInstagramInfoAsync(string url, CancellationToken ct)
     {
-        var args = new List<string>();
-        if (!string.IsNullOrWhiteSpace(_opts.CookiesFilePath) && File.Exists(_opts.CookiesFilePath))
+        var args = new List<string> { "-j" };
+        
+        var safeCookies = GetSafeCookiesFilePath();
+        if (safeCookies != null)
         {
             args.Add("--cookies");
-            args.Add(_opts.CookiesFilePath);
+            args.Add(safeCookies);
         }
-        args.AddRange(["-j", url]);
+        args.Add(url);
 
         var json = await RunProcessAsync("gallery-dl", args, ct);
         return ParseGalleryDlInfo(url, json);
@@ -476,10 +497,12 @@ public sealed class YtDlpService : IDownloadService
     private async Task<string?> DownloadInstagramAsync(DownloadJob job, CancellationToken ct)
     {
         var args = new List<string>();
-        if (!string.IsNullOrWhiteSpace(_opts.CookiesFilePath) && File.Exists(_opts.CookiesFilePath))
+        
+        var safeCookies = GetSafeCookiesFilePath();
+        if (safeCookies != null)
         {
             args.Add("--cookies");
-            args.Add(_opts.CookiesFilePath);
+            args.Add(safeCookies);
         }
 
         args.AddRange([
