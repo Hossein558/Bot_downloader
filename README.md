@@ -4,12 +4,34 @@ A robust, private Telegram Bot and Blazor Web Panel for downloading videos from 
 This unified application runs completely on Docker and uses Cloudflare WARP and PO Tokens to bypass YouTube's anti-bot protections.
 
 ## Features
-- **Web Dashboard:** A premium Syncfusion-powered Blazor web UI (Port 8080) to monitor and start downloads.
+- **Web Dashboard:** A premium Blazor web UI to monitor and start downloads.
 - **Telegram Bot:** Direct integration for users to request downloads via chat.
-- **YouTube Anti-Ban:** Routes YouTube downloads through a local Cloudflare WARP SOCKS5 proxy to appear as a residential user.
+- **YouTube Anti-Ban:** Routes YouTube downloads through a local Cloudflare WARP proxy to appear as a residential user.
 - **PO Tokens:** Automatically generates YouTube Proof-of-Origin tokens.
 - **Cookie Support:** Uses `cookies.txt` for authenticated downloads.
 - **Async & Fast:** Built on .NET 9 and `yt-dlp`.
+
+---
+
+## 🔄 Architectural & Download Flow Updates
+
+Recently, the download engine underwent key architectural improvements to handle YouTube's anti-bot measures and provide a better UX:
+
+### 1. Two-Step Dynamic Video Quality Flow (Web Panel)
+Previously, the web panel used a static Enum for video quality. To handle videos with varying resolutions and formats, the web interface now uses a dynamic **two-step flow**:
+1. **Metadata Check:** The user enters the video URL and clicks "Check Video". The backend executes `yt-dlp --dump-json` to extract full metadata.
+2. **Dynamic Format Selection:** The UI dynamically lists all available formats and merged resolutions (e.g., `137+140` for YouTube 1080p, or `136+140` for 720p) directly extracted from the video metadata. The user selects the exact format, preventing failures from unavailable quality choices.
+
+### 2. Modern PO Token Strategy
+To bypass YouTube's restrictive bot-detection policies, the backend integrates with the `bgutil-provider` container sidecar. The PO token generation strategy has been updated to use modern extractor arguments:
+- **Deprecated:** `youtube:getpot_bgutil_baseurl` (causes provider request rejection).
+- **Current:** `youtubepot-bgutilhttp:base_url` (successfully generates valid PO Tokens via the sidecar).
+
+### 3. Backend Handling of Audio-Only (MP3) Downloads
+Since YouTube has no native `mp3` format streams, selecting "MP3" in the quality selection sends a format ID of `"mp3"`. 
+The backend (`YtDlpService`) explicitly catches this `"mp3"` string, dynamically maps it, and appends the appropriate `yt-dlp` extraction arguments:
+- `yt-dlp -f bestaudio -x --audio-format mp3`
+This allows seamless extraction and conversion to high-quality MP3 files.
 
 ---
 
