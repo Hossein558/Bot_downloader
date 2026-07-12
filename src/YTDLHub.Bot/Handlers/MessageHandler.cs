@@ -88,7 +88,7 @@ public sealed class MessageHandler
                     var info = await _downloader.GetVideoInfoAsync(url, ct);
                     
                     var user = await _userService.GetUserByTelegramIdAsync(message.Chat.Id);
-                    job = await _downloader.StartDownloadAsync(url, VideoQuality.Best, null, user?.Id, null, ct);
+                    job = await _downloader.StartDownloadAsync(url, VideoQuality.Best, null, user?.Id, null, ct: ct);
                     job.VideoTitle = info.Title;
 
                     // Track progress using CallbackHandler helper

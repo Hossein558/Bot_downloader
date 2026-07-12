@@ -311,7 +311,7 @@
 
         if (!isYt && !isIg)
         {
-            UrlValidationError = "⚠️ لینک نامعتبر است. لطفاً یک لینک معتبر YouTube یا Instagram وارد کنید.";
+            UrlValidationError = "⚠️ لینک وارد شده پشتیبانی نمیشود. در حال حاضر فقط لینکهای YouTube و Instagram پشتیبانی میشوند.";
         }
     }
 
@@ -441,7 +441,9 @@
                 Model.Quality,
                 Model.FormatId,
                 UserId,
-                Model.FolderId == Guid.Empty ? null : Model.FolderId);
+                Model.FolderId == Guid.Empty ? null : Model.FolderId,
+                CheckedVideoInfo?.Title,
+                CheckedVideoInfo?.ThumbnailUrl);
 
             await JS.InvokeVoidAsync("console.log",
                 $"[YTDLHub] Download queued for: {Model.Url}");

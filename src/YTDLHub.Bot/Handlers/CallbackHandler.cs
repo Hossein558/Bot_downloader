@@ -132,7 +132,7 @@ public sealed class CallbackHandler
         try
         {
             var user = await _userService.GetUserByTelegramIdAsync(chatId);
-            job = await _downloader.StartDownloadAsync(state.Url, quality, formatId, user?.Id, null, ct);
+            job = await _downloader.StartDownloadAsync(state.Url, quality, formatId, user?.Id, null, ct: ct);
             job.VideoTitle = state.Info.Title;
 
             // Keep editing progress message until done

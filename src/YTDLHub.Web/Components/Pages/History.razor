@@ -70,6 +70,7 @@
             <table class="dl-table">
                 <thead>
                     <tr>
+                        <th>کاور</th>
                         <th>عنوان / فایل</th>
                         <th>پلتفرم</th>
                         <th>کیفیت</th>
@@ -82,6 +83,16 @@
                     @foreach (var job in FilteredJobs)
                     {
                         <tr>
+                            <td>
+                                @if (!string.IsNullOrEmpty(job.ThumbnailUrl))
+                                {
+                                    <img src="@job.ThumbnailUrl" class="img-thumbnail" style="width: 80px; height: auto; border-radius: 6px; object-fit: cover;" alt="کاور ویدیو" />
+                                }
+                                else
+                                {
+                                    <div style="width: 80px; height: 45px; background: var(--bg-card-hover); border-radius: 6px; display: flex; align-items: center; justify-content: center; color: var(--text-muted); font-size: 0.8rem;">ندارد</div>
+                                }
+                            </td>
                             <td style="max-width: 280px;">
                                 <div class="dl-title" dir="ltr" style="text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
                                     @(job.VideoTitle ?? job.FileName ?? job.Url)

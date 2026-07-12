@@ -128,9 +128,11 @@ public sealed class YtDlpService : IDownloadService
         string? formatId = null,
         Guid? userId = null,
         Guid? folderId = null,
+        string? videoTitle = null,
+        string? thumbnailUrl = null,
         CancellationToken ct = default)
     {
-        var job = new DownloadJob { Url = url, Quality = quality, FormatId = formatId, UserId = userId, FolderId = folderId, Platform = DetectPlatform(url) };
+        var job = new DownloadJob { Url = url, Quality = quality, FormatId = formatId, UserId = userId, FolderId = folderId, VideoTitle = videoTitle, ThumbnailUrl = thumbnailUrl, Platform = DetectPlatform(url) };
         _jobs[job.Id] = job;
 
         // Fire-and-forget on a thread-pool thread so the caller is not blocked
@@ -164,7 +166,7 @@ public sealed class YtDlpService : IDownloadService
             }
             else
             {
-                var outputTemplate = Path.Combine(_opts.DownloadDirectory, $"{job.Id}.%(ext)s");
+                var outputTemplate = Path.Combine(_opts.DownloadDirectory, $"%(title)s_[{job.Id}].%(ext)s");
                 var args = BuildBaseArgs(job.Url);
 
                 // Merge video+audio to mp4; for audio-only, convert to requested codec
@@ -202,6 +204,7 @@ public sealed class YtDlpService : IDownloadService
                     "--newline",             // one progress line per line (easier to parse)
                     "--progress",
                     "-o", outputTemplate,
+                    "--restrict-filenames",
                     "--no-playlist",
                     job.Url
                 ]);
@@ -231,7 +234,7 @@ public sealed class YtDlpService : IDownloadService
                 }
 
                 outputFile = Directory
-                    .EnumerateFiles(_opts.DownloadDirectory, $"{job.Id}.*")
+                    .EnumerateFiles(_opts.DownloadDirectory, $"*[{job.Id}].*")
                     .FirstOrDefault();
             }
 
@@ -512,9 +515,13 @@ public sealed class YtDlpService : IDownloadService
             args.Add(safeCookies);
         }
 
+        var safeTitle = string.IsNullOrWhiteSpace(job.VideoTitle) 
+            ? "instagram_post" 
+            : new string(job.VideoTitle.Where(c => char.IsLetterOrDigit(c) || c == '_' || c == '-').ToArray());
+
         args.AddRange([
             "-D", _opts.DownloadDirectory,
-            "-o", $"filename={job.Id}.{{extension}}",
+            "-o", $"filename={safeTitle}_[{job.Id}].{{extension}}",
             job.Url
         ]);
 
@@ -533,7 +540,7 @@ public sealed class YtDlpService : IDownloadService
         }
 
         return Directory
-            .EnumerateFiles(_opts.DownloadDirectory, $"{job.Id}.*")
+            .EnumerateFiles(_opts.DownloadDirectory, $"*[{job.Id}].*")
             .FirstOrDefault();
     }
 

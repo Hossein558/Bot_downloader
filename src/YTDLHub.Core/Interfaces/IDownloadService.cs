@@ -21,6 +21,8 @@ public interface IDownloadService
         string? formatId = null,
         Guid? userId = null,
         Guid? folderId = null,
+        string? videoTitle = null,
+        string? thumbnailUrl = null,
         CancellationToken ct = default);
 
     /// <summary>

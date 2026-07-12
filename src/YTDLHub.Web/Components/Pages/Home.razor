@@ -1,6 +1,6 @@
 @page "/"
 @rendermode InteractiveServer
-@using System.Timers
+@using System.Threading
 @using YTDLHub.Core.Interfaces
 @using YTDLHub.Core.Models
 @using YTDLHub.Core.Enums
@@ -96,6 +96,7 @@
                 <thead>
                     <tr>
                         <th>پلتفرم</th>
+                        <th>کاور</th>
                         <th>عنوان / لینک</th>
                         <th>کیفیت</th>
                         <th>وضعیت</th>
@@ -118,6 +119,16 @@
                                 else
                                 {
                                     <i class="bi bi-link-45deg" style="color: var(--brand-primary); font-size: 1.1rem;"></i>
+                                }
+                            </td>
+                            <td>
+                                @if (!string.IsNullOrEmpty(job.ThumbnailUrl))
+                                {
+                                    <img src="@job.ThumbnailUrl" class="img-thumbnail" style="width: 80px; height: auto; border-radius: 6px; object-fit: cover;" alt="کاور ویدیو" />
+                                }
+                                else
+                                {
+                                    <div style="width: 80px; height: 45px; background: var(--bg-card-hover); border-radius: 6px; display: flex; align-items: center; justify-content: center; color: var(--text-muted); font-size: 0.8rem;">ندارد</div>
                                 }
                             </td>
                             <td>
@@ -190,9 +201,11 @@
 
 @code {
     private IEnumerable<DownloadJob> ActiveJobs = new List<DownloadJob>();
-    private Timer? _timer;
     private Guid UserId;
     private bool IsProfileComplete = true;
+
+    private PeriodicTimer? _timer;
+    private CancellationTokenSource _cts = new();
 
     private int ActiveJobsCount => DownloadService.GetAllJobs()
         .Count(j => j.UserId == UserId &&
@@ -219,15 +232,26 @@
                 IsProfileComplete = profileClaim == "True";
 
                 RefreshData();
-                _timer = new Timer(2000);
-                _timer.Elapsed += (_, _) =>
-                {
-                    RefreshData();
-                    InvokeAsync(StateHasChanged);
-                };
-                _timer.Start();
+                StartPolling();
             }
         }
+    }
+
+    private void StartPolling()
+    {
+        _timer = new PeriodicTimer(TimeSpan.FromSeconds(2));
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                while (await _timer.WaitForNextTickAsync(_cts.Token))
+                {
+                    RefreshData();
+                    await InvokeAsync(StateHasChanged);
+                }
+            }
+            catch (OperationCanceledException) { }
+        });
     }
 
     private void RefreshData()
@@ -243,6 +267,8 @@
 
     public void Dispose()
     {
+        _cts.Cancel();
+        _cts.Dispose();
         _timer?.Dispose();
     }
 }

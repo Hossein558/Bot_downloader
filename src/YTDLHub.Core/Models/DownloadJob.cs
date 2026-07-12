@@ -9,6 +9,7 @@ public sealed class DownloadJob
     public VideoQuality Quality { get; init; }
     public string? FormatId { get; set; }
     public string? VideoTitle { get; set; }
+    public string? ThumbnailUrl { get; set; }
     public JobStatus Status { get; set; } = JobStatus.Queued;
     public int Progress { get; set; }           // 0-100
     public string? SpeedDisplay { get; set; }
