@@ -149,10 +149,17 @@ public sealed class YtDlpService : IDownloadService
                 // Merge video+audio to mp4; for audio-only, convert to requested codec
                 if (!string.IsNullOrEmpty(job.FormatId))
                 {
-                    args.AddRange([
-                        "-f", job.FormatId,
-                        "--merge-output-format", "mp4"
-                    ]);
+                    if (job.FormatId == "mp3")
+                    {
+                        args.AddRange(["-f", "bestaudio", "-x", "--audio-format", "mp3"]);
+                    }
+                    else
+                    {
+                        args.AddRange([
+                            "-f", job.FormatId,
+                            "--merge-output-format", "mp4"
+                        ]);
+                    }
                 }
                 else if (job.Quality is VideoQuality.AudioMp3)
                 {
@@ -584,7 +591,7 @@ public sealed class YtDlpService : IDownloadService
             if (!string.IsNullOrWhiteSpace(_opts.PotProviderUrl))
             {
                 args.Add("--extractor-args");
-                args.Add($"youtube:getpot_bgutil_baseurl={_opts.PotProviderUrl}");
+                args.Add($"youtubepot-bgutilhttp:base_url={_opts.PotProviderUrl}");
             }
         }
         else if (platform == Platform.Instagram)
