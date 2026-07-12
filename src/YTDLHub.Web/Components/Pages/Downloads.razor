@@ -13,190 +13,171 @@
 @inject NavigationManager Nav
 @attribute [Authorize]
 
-<PageTitle>دانلود جدید — YTDLHub</PageTitle>
+<PageTitle>&#x62F;&#x627;&#x646;&#x644;&#x648;&#x62F; &#x62C;&#x62F;&#x6CC;&#x62F; &mdash; YTDLHub</PageTitle>
 
-@if (!IsProfileComplete)
-{
-    <!-- Profile Incomplete Guard -->
-    <div style="display: flex; align-items: center; justify-content: center; min-height: 60vh;">
-        <div style="text-align: center; max-width: 440px;">
-            <div style="width: 80px; height: 80px; background: var(--warning-bg); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 1.5rem; font-size: 2rem; color: var(--warning);">
-                <i class="bi bi-person-badge-fill"></i>
-            </div>
-            <h2 style="font-size: 1.3rem; font-weight: 700; color: var(--text-primary); margin-bottom: 0.5rem;">ابتدا پروفایل خود را تکمیل کنید</h2>
-            <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 1.5rem; line-height: 1.6;">
-                برای استفاده از امکانات دانلود، باید اطلاعات پروفایل (نام، شماره تماس و ایمیل یا آیدی تلگرام) را تکمیل کنید.
-            </p>
-            <a href="/profile/setup" class="btn btn-primary btn-lg">
-                <i class="bi bi-person-badge-fill"></i>
-                تکمیل پروفایل
-            </a>
+<div class="glass-card">
+    <div class="card-title">
+        <div style="display: flex; align-items: center; gap: 0.6rem;">
+            <div class="card-title-icon"><i class="bi bi-cloud-arrow-down-fill"></i></div>
+            &#x62B;&#x628;&#x62A; &#x62F;&#x627;&#x646;&#x644;&#x648;&#x62F; &#x62C;&#x62F;&#x6CC;&#x62F;
         </div>
     </div>
-}
-else
-{
-    <div class="glass-card">
-        <div class="card-title">
-            <div style="display: flex; align-items: center; gap: 0.6rem;">
-                <div class="card-title-icon"><i class="bi bi-cloud-arrow-down-fill"></i></div>
-                ثبت دانلود جدید
+
+    <EditForm Model="@Model" OnValidSubmit="HandleSubmit" FormName="download-form">
+        <DataAnnotationsValidator />
+
+        @if (!IsStepTwo)
+        {
+            <div class="form-field" style="margin-bottom: 1.25rem;">
+                <label class="form-label">
+                    <i class="bi bi-link-45deg"></i>
+                    &#x644;&#x6CC;&#x646;&#x6A9; &#x645;&#x62D;&#x62A;&#x648;&#x627;
+                </label>
+                <InputText @bind-Value="Model.Url"
+                           @oninput="OnUrlInput"
+                           class="form-input"
+                           placeholder="https://www.youtube.com/watch?v=... &#x6CC;&#x627; &#x647;&#x631; &#x644;&#x6CC;&#x646;&#x6A9; &#x648;&#x6CC;&#x62F;&#x6CC;&#x648;&#x6CC;&#x6CC;"
+                           dir="ltr" />
+                <ValidationMessage For="@(() => Model.Url)" style="font-size: 0.75rem; color: #f87171; margin-top: 0.25rem; display: block;" />
             </div>
-        </div>
 
-        <EditForm Model="@Model" OnValidSubmit="HandleSubmit" FormName="download-form">
-            <DataAnnotationsValidator />
-
-            @if (!IsStepTwo)
+            @if (!string.IsNullOrEmpty(Message))
             {
-                <div class="form-field" style="margin-bottom: 1.25rem;">
-                    <label class="form-label">
-                        <i class="bi bi-link-45deg"></i>
-                        لینک محتوا
-                    </label>
-                    <InputText @bind-Value="Model.Url"
-                               @oninput="OnUrlInput"
-                               class="form-input"
-                               placeholder="https://www.youtube.com/watch?v=... یا هر لینک ویدیویی"
-                               dir="ltr" />
-                    <ValidationMessage For="@(() => Model.Url)" style="font-size: 0.75rem; color: #f87171; margin-top: 0.25rem; display: block;" />
-                </div>
-
-                @if (!string.IsNullOrEmpty(Message))
-                {
-                    <div class="alert alert-@MessageType" style="margin-bottom: 1rem;">
-                        <i class="bi bi-@(MessageType == "success" ? "check-circle-fill" : "exclamation-circle-fill")"></i>
-                        @Message
-                    </div>
-                }
-
-                <div style="display: flex; justify-content: flex-end;">
-                    <button type="button" class="btn btn-primary btn-lg" disabled="@(IsCheckingVideo || string.IsNullOrWhiteSpace(Model.Url))" @onclick="CheckVideoAsync">
-                        @if (IsCheckingVideo)
-                        {
-                            <span class="spinner"></span>
-                            <span>در حال بررسی...</span>
-                        }
-                        else
-                        {
-                            <i class="bi bi-search"></i>
-                            <span>بررسی ویدیو</span>
-                        }
-                    </button>
+                <div class="alert alert-@MessageType" style="margin-bottom: 1rem;">
+                    <i class="bi bi-@(MessageType == "success" ? "check-circle-fill" : "exclamation-circle-fill")"></i>
+                    @Message
                 </div>
             }
-            else
-            {
-                <!-- Step 2: Quality & Folder Selection -->
-                <div style="margin-bottom: 1.5rem; padding: 1rem; background: var(--bg-card-hover); border-radius: 8px; border: 1px solid var(--border-subtle);">
-                    @if (CheckedVideoInfo != null)
-                    {
-                        <div style="display: flex; gap: 1rem; align-items: flex-start;">
-                            @if (!string.IsNullOrEmpty(CheckedVideoInfo.ThumbnailUrl))
-                            {
-                                <img src="@CheckedVideoInfo.ThumbnailUrl" alt="Thumbnail" style="width: 120px; border-radius: 6px; object-fit: cover;" />
-                            }
-                            <div>
-                                <h4 style="margin: 0 0 0.5rem 0; font-size: 1rem; color: var(--text-primary);">@CheckedVideoInfo.Title</h4>
-                                <div style="font-size: 0.8rem; color: var(--text-muted);"><i class="bi bi-person"></i> @CheckedVideoInfo.Uploader</div>
-                                @if (CheckedVideoInfo.Duration > TimeSpan.Zero)
-                                {
-                                    <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 0.2rem;"><i class="bi bi-clock"></i> @((int)CheckedVideoInfo.Duration.TotalMinutes):@CheckedVideoInfo.Duration.Seconds.ToString("D2")</div>
-                                }
-                            </div>
-                        </div>
-                    }
-                </div>
 
-                <div class="form-field" style="margin-bottom: 1.25rem;">
-                    <label class="form-label">
-                        <i class="bi bi-badge-hd-fill"></i>
-                        کیفیت ویدیو
-                    </label>
-                    
-                    @if (CheckedVideoInfo?.Platform == Platform.YouTube && CheckedVideoInfo.YoutubeFormats.Any())
+            <div style="display: flex; justify-content: flex-end;">
+                <button type="button" class="btn btn-primary btn-lg" disabled="@(IsCheckingVideo || string.IsNullOrWhiteSpace(Model.Url))" @onclick="CheckVideoAsync">
+                    @if (IsCheckingVideo)
                     {
-                        <InputSelect @bind-Value="Model.FormatId" class="form-input" dir="ltr">
-                            @foreach (var fmt in CheckedVideoInfo.YoutubeFormats)
-                            {
-                                <option value="@fmt.FormatId">@fmt.DisplayName</option>
-                            }
-                        </InputSelect>
+                        <span class="spinner"></span>
+                        <span>&#x62F;&#x631; &#x62D;&#x627;&#x644; &#x628;&#x631;&#x631;&#x633;&#x6CC;...</span>
                     }
                     else
                     {
-                        <InputSelect @bind-Value="Model.Quality" class="form-input" dir="ltr">
-                            @foreach (var q in CheckedVideoInfo?.AvailableQualities ?? new List<VideoQuality>())
-                            {
-                                <option value="@q">@GetQualityName(q)</option>
-                            }
-                        </InputSelect>
+                        <i class="bi bi-search"></i>
+                        <span>&#x628;&#x631;&#x631;&#x633;&#x6CC; &#x648;&#x6CC;&#x62F;&#x6CC;&#x648;</span>
                     }
-                </div>
-
-                <div class="form-field" style="margin-bottom: 1.5rem;">
-                    <label class="form-label">
-                        <i class="bi bi-folder-fill"></i>
-                        ذخیره در پوشه
-                    </label>
-                    <InputSelect @bind-Value="Model.FolderId" class="form-input">
-                        <option value="">-- پوشه اصلی (دانلودها) --</option>
-                        @foreach (var f in UserFolders)
-                        {
-                            <option value="@f.Id">@f.Name</option>
-                        }
-                    </InputSelect>
-                </div>
-
-                @if (!string.IsNullOrEmpty(Message))
+                </button>
+            </div>
+        }
+        else
+        {
+            <!-- Step 2: Quality & Folder Selection -->
+            <div style="margin-bottom: 1.5rem; padding: 1rem; background: var(--bg-card-hover); border-radius: 8px; border: 1px solid var(--border-subtle);">
+                @if (CheckedVideoInfo != null)
                 {
-                    <div class="alert alert-@MessageType" style="margin-bottom: 1rem;">
-                        <i class="bi bi-@(MessageType == "success" ? "check-circle-fill" : "exclamation-circle-fill")"></i>
-                        @Message
+                    <div style="display: flex; gap: 1rem; align-items: flex-start;">
+                        @if (!string.IsNullOrEmpty(CheckedVideoInfo.ThumbnailUrl))
+                        {
+                            <img src="@CheckedVideoInfo.ThumbnailUrl" alt="Thumbnail" style="width: 120px; border-radius: 6px; object-fit: cover;" />
+                        }
+                        <div>
+                            <h4 style="margin: 0 0 0.5rem 0; font-size: 1rem; color: var(--text-primary);">@CheckedVideoInfo.Title</h4>
+                            <div style="font-size: 0.8rem; color: var(--text-muted);"><i class="bi bi-person"></i> @CheckedVideoInfo.Uploader</div>
+                            @if (CheckedVideoInfo.Duration > TimeSpan.Zero)
+                            {
+                                <div style="font-size: 0.8rem; color: var(--text-muted); margin-top: 0.2rem;"><i class="bi bi-clock"></i> @((int)CheckedVideoInfo.Duration.TotalMinutes):@CheckedVideoInfo.Duration.Seconds.ToString("D2")</div>
+                            }
+                        </div>
                     </div>
                 }
-
-                <div style="display: flex; justify-content: space-between;">
-                    <button type="button" class="btn btn-secondary btn-lg" @onclick="ResetForm" disabled="@IsSubmitting">
-                        <i class="bi bi-arrow-right"></i>
-                        بازگشت
-                    </button>
-                    <button type="submit" class="btn btn-primary btn-lg" disabled="@IsSubmitting">
-                        @if (IsSubmitting)
-                        {
-                            <span class="spinner"></span>
-                            <span>در حال پردازش...</span>
-                        }
-                        else
-                        {
-                            <i class="bi bi-cloud-arrow-down-fill"></i>
-                            <span>شروع دانلود</span>
-                        }
-                    </button>
-                </div>
-            }
-        </EditForm>
-    </div>
-
-    <!-- Supported Platforms Info -->
-    <div class="glass-card">
-        <div class="card-title">
-            <div style="display: flex; align-items: center; gap: 0.6rem;">
-                <div class="card-title-icon"><i class="bi bi-info-circle-fill"></i></div>
-                پلتفرم‌های پشتیبانی‌شده
             </div>
-        </div>
-        <div style="display: flex; flex-wrap: wrap; gap: 0.75rem;">
-            @foreach (var platform in SupportedPlatforms)
+
+            <div class="form-field" style="margin-bottom: 1.25rem;">
+                <label class="form-label">
+                    <i class="bi bi-badge-hd-fill"></i>
+                    &#x6A9;&#x6CC;&#x641;&#x6CC;&#x62A; &#x648;&#x6CC;&#x62F;&#x6CC;&#x648;
+                </label>
+
+                @if (CheckedVideoInfo?.Platform == Platform.YouTube && CheckedVideoInfo.YoutubeFormats.Any())
+                {
+                    <InputSelect @bind-Value="Model.FormatId" class="form-input" dir="ltr">
+                        @foreach (var fmt in CheckedVideoInfo.YoutubeFormats)
+                        {
+                            <option value="@fmt.FormatId">@fmt.DisplayName</option>
+                        }
+                    </InputSelect>
+                }
+                else
+                {
+                    <InputSelect @bind-Value="Model.Quality" class="form-input" dir="ltr">
+                        @foreach (var q in CheckedVideoInfo?.AvailableQualities ?? new List<VideoQuality>())
+                        {
+                            <option value="@q">@GetQualityName(q)</option>
+                        }
+                    </InputSelect>
+                }
+            </div>
+
+            <div class="form-field" style="margin-bottom: 1.5rem;">
+                <label class="form-label">
+                    <i class="bi bi-folder-fill"></i>
+                    &#x630;&#x62E;&#x6CC;&#x631;&#x647; &#x62F;&#x631; &#x67E;&#x648;&#x634;&#x647;
+                    <span style="font-size: 0.72rem; color: var(--text-muted); margin-right: 0.4rem;">
+                        (&#x62E;&#x648;&#x62F;&#x6A9;&#x627;&#x631; &#x628;&#x631; &#x627;&#x633;&#x627;&#x633; &#x67E;&#x644;&#x62A;&#x641;&#x631;&#x645; &#x627;&#x646;&#x62A;&#x62E;&#x627;&#x628; &#x645;&#x6CC;&#x200C;&#x634;&#x648;&#x62F;)
+                    </span>
+                </label>
+                <InputSelect @bind-Value="Model.FolderId" class="form-input">
+                    <option value="">-- &#x67E;&#x648;&#x634;&#x647; &#x627;&#x635;&#x644;&#x6CC; (&#x62F;&#x627;&#x646;&#x644;&#x648;&#x62F;&#x647;&#x627;) --</option>
+                    @foreach (var f in UserFolders)
+                    {
+                        <option value="@f.Id">@f.Name</option>
+                    }
+                </InputSelect>
+            </div>
+
+            @if (!string.IsNullOrEmpty(Message))
             {
-                <div style="display: flex; align-items: center; gap: 0.4rem; background: var(--bg-card-hover); border: 1px solid var(--border-subtle); border-radius: 8px; padding: 0.4rem 0.75rem; font-size: 0.78rem; color: var(--text-secondary);">
-                    <i class="bi @platform.Icon" style="color: @platform.Color;"></i>
-                    @platform.Name
+                <div class="alert alert-@MessageType" style="margin-bottom: 1rem;">
+                    <i class="bi bi-@(MessageType == "success" ? "check-circle-fill" : "exclamation-circle-fill")"></i>
+                    @Message
                 </div>
             }
+
+            <div style="display: flex; justify-content: space-between;">
+                <button type="button" class="btn btn-secondary btn-lg" @onclick="ResetForm" disabled="@IsSubmitting">
+                    <i class="bi bi-arrow-right"></i>
+                    &#x628;&#x627;&#x632;&#x6AF;&#x634;&#x62A;
+                </button>
+                <button type="submit" class="btn btn-primary btn-lg" disabled="@IsSubmitting">
+                    @if (IsSubmitting)
+                    {
+                        <span class="spinner"></span>
+                        <span>&#x62F;&#x631; &#x62D;&#x627;&#x644; &#x67E;&#x631;&#x62F;&#x627;&#x632;&#x634;...</span>
+                    }
+                    else
+                    {
+                        <i class="bi bi-cloud-arrow-down-fill"></i>
+                        <span>&#x634;&#x631;&#x648;&#x639; &#x62F;&#x627;&#x646;&#x644;&#x648;&#x62F;</span>
+                    }
+                </button>
+            </div>
+        }
+    </EditForm>
+</div>
+
+<!-- Supported Platforms Info -->
+<div class="glass-card">
+    <div class="card-title">
+        <div style="display: flex; align-items: center; gap: 0.6rem;">
+            <div class="card-title-icon"><i class="bi bi-info-circle-fill"></i></div>
+            &#x67E;&#x644;&#x62A;&#x641;&#x631;&#x645;&#x200C;&#x647;&#x627;&#x6CC; &#x67E;&#x634;&#x62A;&#x6CC;&#x628;&#x627;&#x646;&#x6CC;&#x200C;&#x634;&#x62F;&#x647;
         </div>
     </div>
-}
+    <div style="display: flex; flex-wrap: wrap; gap: 0.75rem;">
+        @foreach (var platform in SupportedPlatforms)
+        {
+            <div style="display: flex; align-items: center; gap: 0.4rem; background: var(--bg-card-hover); border: 1px solid var(--border-subtle); border-radius: 8px; padding: 0.4rem 0.75rem; font-size: 0.78rem; color: var(--text-secondary);">
+                <i class="bi @platform.Icon" style="color: @platform.Color;"></i>
+                @platform.Name
+            </div>
+        }
+    </div>
+</div>
 
 @code {
     private DownloadFormModel Model = new();
@@ -204,7 +185,6 @@ else
     private string Message = "";
     private string MessageType = "info";
     private bool IsYoutube = false;
-    private bool IsProfileComplete = true;
 
     private bool IsStepTwo = false;
     private bool IsCheckingVideo = false;
@@ -222,7 +202,7 @@ else
         new() { Name = "TikTok", Icon = "bi-tiktok", Color = "#06b6d4" },
         new() { Name = "SoundCloud", Icon = "bi-soundwave", Color = "#f97316" },
         new() { Name = "Vimeo", Icon = "bi-vimeo", Color = "#6366f1" },
-        new() { Name = "و بیش از ۱۰۰۰ سایت دیگر", Icon = "bi-globe2", Color = "#10b981" },
+        new() { Name = "&#x648; &#x628;&#x6CC;&#x634; &#x627;&#x632; &#x06F1;&#x06F0;&#x06F0;&#x06F0; &#x633;&#x627;&#x6CC;&#x62A; &#x62F;&#x6CC;&#x6AF;&#x631;", Icon = "bi-globe2", Color = "#10b981" },
     };
 
     protected override async Task OnInitializedAsync()
@@ -233,13 +213,8 @@ else
             var userIdStr = authState.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
             if (Guid.TryParse(userIdStr, out UserId))
             {
-                var profileClaim = authState.User.FindFirstValue("IsProfileComplete");
-                IsProfileComplete = profileClaim == "True";
-
-                if (IsProfileComplete)
-                {
-                    UserFolders = DbContext.Folders.Where(f => f.UserId == UserId).ToList();
-                }
+                // Load all user folders (no profile gate — login is sufficient)
+                UserFolders = DbContext.Folders.Where(f => f.UserId == UserId).ToList();
             }
         }
     }
@@ -267,7 +242,10 @@ else
             CheckedVideoInfo = await DownloadService.GetVideoInfoAsync(Model.Url);
             IsStepTwo = true;
 
-            // Default selections
+            // Auto-select folder based on detected platform
+            AutoSelectFolder(CheckedVideoInfo.Platform);
+
+            // Default quality selections
             if (CheckedVideoInfo.Platform == Platform.YouTube && CheckedVideoInfo.YoutubeFormats.Any())
             {
                 Model.FormatId = CheckedVideoInfo.YoutubeFormats.First().FormatId;
@@ -279,7 +257,7 @@ else
         }
         catch (Exception ex)
         {
-            Message = $"خطا در دریافت اطلاعات: {ex.Message}";
+            Message = $"&#x62E;&#x637;&#x627; &#x62F;&#x631; &#x62F;&#x631;&#x6CC;&#x627;&#x641;&#x62A; &#x627;&#x637;&#x644;&#x627;&#x639;&#x627;&#x62A;: {ex.Message}";
             MessageType = "error";
         }
         finally
@@ -287,6 +265,29 @@ else
             IsCheckingVideo = false;
             StateHasChanged();
         }
+    }
+
+    /// <summary>
+    /// Auto-selects the platform-specific folder (YouTube / Instagram),
+    /// falling back to the default catch-all folder.
+    /// The user can still override this via the folder dropdown.
+    /// </summary>
+    private void AutoSelectFolder(Platform platform)
+    {
+        var targetName = platform switch
+        {
+            Platform.YouTube   => "YouTube",
+            Platform.Instagram => "Instagram",
+            _                  => null
+        };
+
+        UserFolder? folder = targetName != null
+            ? UserFolders.FirstOrDefault(f => f.Name == targetName)
+            : null;
+
+        folder ??= UserFolders.FirstOrDefault(f => f.IsDefault);
+
+        Model.FolderId = folder?.Id;
     }
 
     private void ResetForm()
@@ -305,6 +306,13 @@ else
 
         try
         {
+            // If no folder explicitly selected, apply auto-routing one more time
+            if (Model.FolderId == null || Model.FolderId == Guid.Empty)
+            {
+                var platform = DownloadService.DetectPlatform(Model.Url);
+                AutoSelectFolder(platform);
+            }
+
             await DownloadService.StartDownloadAsync(
                 Model.Url,
                 Model.Quality,
@@ -312,12 +320,12 @@ else
                 UserId,
                 Model.FolderId == Guid.Empty ? null : Model.FolderId);
 
-            Message = "✅ دانلود با موفقیت در صف قرار گرفت! می‌توانید پیشرفت را در داشبورد دنبال کنید.";
+            Message = "&#x2705; &#x62F;&#x627;&#x646;&#x644;&#x648;&#x62F; &#x628;&#x627; &#x645;&#x648;&#x641;&#x642;&#x6CC;&#x62A; &#x62F;&#x631; &#x635;&#x641; &#x642;&#x631;&#x627;&#x631; &#x6AF;&#x631;&#x641;&#x62A;! &#x645;&#x6CC;&#x200C;&#x62A;&#x648;&#x627;&#x646;&#x6CC;&#x62F; &#x67E;&#x6CC;&#x634;&#x631;&#x641;&#x62A; &#x631;&#x627; &#x62F;&#x631; &#x62F;&#x627;&#x634;&#x628;&#x648;&#x631;&#x62F; &#x62F;&#x646;&#x628;&#x627;&#x644; &#x6A9;&#x646;&#x6CC;&#x62F;.";
             MessageType = "success";
-            
+
             // Wait briefly before resetting
             await Task.Delay(2000);
-            
+
             Model = new();
             IsYoutube = false;
             IsStepTwo = false;
@@ -326,7 +334,7 @@ else
         }
         catch (Exception ex)
         {
-            Message = $"خطا: {ex.Message}";
+            Message = $"&#x62E;&#x637;&#x627;: {ex.Message}";
             MessageType = "error";
         }
         finally
@@ -340,21 +348,21 @@ else
     {
         return q switch
         {
-            VideoQuality.Best => "بهترین کیفیت ممکن",
-            VideoQuality.HD1080 => "1080p HD",
-            VideoQuality.HD720 => "720p HD",
-            VideoQuality.SD480 => "480p SD",
-            VideoQuality.SD360 => "360p SD",
-            VideoQuality.AudioMp3 => "فقط صدا (MP3)",
-            VideoQuality.AudioM4A => "فقط صدا (M4A)",
-            _ => q.ToString()
+            VideoQuality.Best     => "&#x628;&#x647;&#x62A;&#x631;&#x6CC;&#x646; &#x6A9;&#x6CC;&#x641;&#x6CC;&#x62A; &#x645;&#x645;&#x6A9;&#x646;",
+            VideoQuality.HD1080   => "1080p HD",
+            VideoQuality.HD720    => "720p HD",
+            VideoQuality.SD480    => "480p SD",
+            VideoQuality.SD360    => "360p SD",
+            VideoQuality.AudioMp3 => "&#x641;&#x642;&#x637; &#x635;&#x62F;&#x627; (MP3)",
+            VideoQuality.AudioM4A => "&#x641;&#x642;&#x637; &#x635;&#x62F;&#x627; (M4A)",
+            _                     => q.ToString()
         };
     }
 
     public class DownloadFormModel
     {
-        [System.ComponentModel.DataAnnotations.Required(ErrorMessage = "لینک الزامی است.")]
-        [System.ComponentModel.DataAnnotations.Url(ErrorMessage = "لینک معتبر نیست.")]
+        [System.ComponentModel.DataAnnotations.Required(ErrorMessage = "&#x644;&#x6CC;&#x646;&#x6A9; &#x627;&#x644;&#x632;&#x627;&#x645;&#x6CC; &#x627;&#x633;&#x62A;.")]
+        [System.ComponentModel.DataAnnotations.Url(ErrorMessage = "&#x644;&#x6CC;&#x646;&#x6A9; &#x645;&#x639;&#x62A;&#x628;&#x631; &#x646;&#x6CC;&#x633;&#x62A;.")]
         public string Url { get; set; } = "";
         public VideoQuality Quality { get; set; } = VideoQuality.Best;
         public string? FormatId { get; set; }
